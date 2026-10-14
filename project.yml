@@ -1,0 +1,45 @@
+name: TapScribe
+options:
+  bundleIdPrefix: com.tapscribe
+  deploymentTarget:
+    macOS: "14.4"
+  createIntermediateGroups: true
+packages:
+  ArgmaxOSS:
+    url: https://github.com/argmaxinc/argmax-oss-swift.git
+    from: "0.9.0"
+targets:
+  TapScribe:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Sources
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.tapscribe.app
+      CODE_SIGN_STYLE: Automatic
+      ENABLE_HARDENED_RUNTIME: NO
+      INFOPLIST_FILE: App/Info.plist
+      CODE_SIGN_ENTITLEMENTS: App/TapScribe.entitlements
+      SWIFT_VERSION: "5.0"
+      MACOSX_DEPLOYMENT_TARGET: "14.4"
+    dependencies:
+      - product: WhisperKit
+        package: ArgmaxOSS
+  TapScribeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: TapScribe
+schemes:
+  TapScribe:
+    build:
+      targets:
+        TapScribe: all
+    test:
+      targets:
+        - TapScribeTests

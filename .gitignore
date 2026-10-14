@@ -1,0 +1,7 @@
+build/
+DerivedData/
+TapScribe.xcodeproj/
+.xcodegen/
+*.xcuserstate
+xcuserdata/
+.DS_Store
