@@ -125,14 +125,16 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        // Secondary actions only; anything still missing lives under "Wymaga konfiguracji".
         let settings = NSMenuItem(title: "Ustawienia", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu()
         settingsMenu.autoenablesItems = false
-        addItem(to: settingsMenu, title: "Model transkrypcji…", action: #selector(openModelSettings(_:)))
-        let redownload = addItem(to: settingsMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
-        redownload.isEnabled = !app.isTranscribing && !app.whisperModelStore.isBusy
-        settingsMenu.addItem(.separator())
-        addItem(to: settingsMenu, title: "Dźwięk systemu (TCC)…", action: #selector(openSystemAudioSettings(_:)))
+        addItem(to: settingsMenu, title: "Dźwięk systemu w Ustawieniach…", action: #selector(openSystemAudioSettings(_:)))
+        let store = app.whisperModelStore
+        if store.isReady, !store.isBusy {
+            let redownload = addItem(to: settingsMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
+            redownload.isEnabled = !app.isTranscribing
+        }
         settings.submenu = settingsMenu
         menu.addItem(settings)
 

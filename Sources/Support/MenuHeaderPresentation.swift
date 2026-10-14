@@ -6,14 +6,15 @@ enum ConfigurationRequirement: Equatable {
     /// Download or first load in progress; the menu shows live status instead of "Pobierz".
     case whisperModelPreparing
 
+    /// Ellipsis per HIG: these open System Settings or the model window.
     var menuTitle: String {
         switch self {
         case .systemAudioPermission:
-            "Uprawnienia dźwięku systemu"
+            "Zezwól na nagrywanie dźwięku systemu…"
         case .whisperModel:
-            "Pobierz model Whisper"
+            "Pobierz model transkrypcji (opcjonalnie)…"
         case .whisperModelPreparing:
-            "Przygotowywanie modelu…"
+            "Pobieranie modelu…"
         }
     }
 

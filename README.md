@@ -42,9 +42,11 @@ Przy **Start nagrywania** (bez modelu Whisper):
 
 Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja proponuje jednorazowe pobranie modelu Whisper (~1,5 GB). Nagrywanie działa od razu, także bez modelu — **Start nagrywania** jest wyłączony tylko przy braku zgody na dźwięk systemu. Bez modelu menu pokazuje „Wymaga konfiguracji → Pobierz model Whisper”, a nagrania po Stop mają status „Brak modelu” (bez transkryptu).
 
-Menu **Ustawienia → Model transkrypcji…** / **Pobierz ponownie model…**
+Menu **Wymaga konfiguracji** pokazuje tylko to, czego brakuje: **Zezwól na nagrywanie dźwięku systemu…** (otwiera Ustawienia systemowe) i/lub **Pobierz model transkrypcji (opcjonalnie)…** (w trakcie pobierania: postęp).
 
-Menu: **Ustawienia: dźwięk systemu…**
+Menu **Ustawienia** (rzadko potrzebne): **Dźwięk systemu w Ustawieniach…** oraz — gdy model jest gotowy — **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model).
+
+Wielokropek „…” jest tylko przy poleceniach, które otwierają okno lub Ustawienia systemowe (zgodnie z macOS HIG); w statusach („Transkrypcja…”) oznacza trwającą czynność.
 
 ### Podpis i bundle ID
 

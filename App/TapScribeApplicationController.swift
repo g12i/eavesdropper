@@ -107,6 +107,15 @@ final class TapScribeApplicationController: ObservableObject {
 
     func prepareRedownloadOnboarding() {
         guard !isTranscribing else { return }
+
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Pobrać model transkrypcji ponownie?"
+        alert.informativeText = "Obecny model (~1,5 GB) zostanie usunięty. Przyda się, gdy transkrypcja zgłasza błędy modelu. Nagrywanie działa bez modelu."
+        alert.addButton(withTitle: "Usuń i pobierz")
+        alert.addButton(withTitle: "Anuluj")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
         whisperModelStore.cancelDownload()
         try? WhisperModelReadiness.removeCachedModels()
         whisperModelStore.refreshReadyState()
