@@ -8,15 +8,14 @@ enum HeadlessRunner {
         }
 
         if args.contains("--probe-capture") {
-            let includeMic = !args.contains("--no-mic")
-            CaptureDiagnostics.printReport(includeMicrophone: includeMic)
+            CaptureDiagnostics.printReport()
             exit(0)
         }
 
         if let transcribeIndex = args.firstIndex(of: "--transcribe"), transcribeIndex + 1 < args.count {
             let path = URL(fileURLWithPath: args[transcribeIndex + 1])
             do {
-                let segments = try await Transcriber.transcribe(path: path, speaker: .others)
+                let segments = try await Transcriber.transcribe(path: path)
                 for segment in segments {
                     print(segment.text)
                 }
@@ -30,16 +29,15 @@ enum HeadlessRunner {
         guard let seconds = parseInt(flag: "--seconds", in: args),
               let outIndex = args.firstIndex(of: "--out"), outIndex + 1 < args.count
         else {
-            fputs("Usage: --headless --seconds N --out <dir> [--no-mic]\n", stderr)
+            fputs("Usage: --headless --seconds N --out <dir>\n", stderr)
             exit(2)
         }
 
         let outDir = URL(fileURLWithPath: args[outIndex + 1])
-        let recordMic = !args.contains("--no-mic")
         let session = RecordingSession()
 
         do {
-            try session.start(in: outDir, recordMicrophone: recordMic)
+            try session.start(in: outDir)
             try await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000)
             try session.stop()
             exit(0)

@@ -24,7 +24,5 @@
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>TapScribe nagrywa dźwięk systemu, żeby go transkrybować.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>TapScribe nagrywa Twój głos na osobną ścieżkę.</string>
 </dict>
 </plist>

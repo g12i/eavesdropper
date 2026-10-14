@@ -5,12 +5,9 @@ enum TranscriptionService {
     typealias StatusHandler = @Sendable (String) -> Void
 
     static func transcribeSession(at directory: URL, onStatus: StatusHandler? = nil) async throws {
-        let micPath = directory.appendingPathComponent("mic.caf")
         let systemPath = directory.appendingPathComponent("system.caf")
 
-        guard FileManager.default.fileExists(atPath: systemPath.path)
-            || FileManager.default.fileExists(atPath: micPath.path)
-        else {
+        guard FileManager.default.fileExists(atPath: systemPath.path) else {
             throw TranscriberError.noAudioFiles
         }
 
@@ -20,9 +17,6 @@ enum TranscriptionService {
             onStatus?(polishStatus(for: newState))
         }
 
-        var mic: [TranscriptSegment] = []
-        var system: [TranscriptSegment] = []
-
         let decodeOptions = DecodingOptions(
             task: .transcribe,
             language: "pl",
@@ -30,21 +24,14 @@ enum TranscriptionService {
             noSpeechThreshold: 0.6
         )
 
-        if FileManager.default.fileExists(atPath: micPath.path) {
-            onStatus?("Transkrypcja: ścieżka „Ja”…")
-            mic = try await Transcriber.transcribeFile(micPath, speaker: .me, whisperKit: whisperKit, decodeOptions: decodeOptions)
-        }
-        if FileManager.default.fileExists(atPath: systemPath.path) {
-            onStatus?("Transkrypcja: dźwięk systemu (Rozmówcy)…")
-            system = try await Transcriber.transcribeFile(
-                systemPath,
-                speaker: .others,
-                whisperKit: whisperKit,
-                decodeOptions: decodeOptions
-            )
-        }
+        onStatus?("Transkrypcja: dźwięk systemu…")
+        let segments = try await Transcriber.transcribeFile(
+            systemPath,
+            whisperKit: whisperKit,
+            decodeOptions: decodeOptions
+        )
 
-        let merged = TranscriptMerger.merge(micSegments: mic, systemSegments: system)
+        let merged = TranscriptMerger.merge(segments)
         try TranscriptMerger.writeTXT(merged, to: directory.appendingPathComponent("transcript.txt"))
         try TranscriptMerger.writeSRT(merged, to: directory.appendingPathComponent("transcript.srt"))
     }

@@ -6,16 +6,8 @@ enum PrivacySettings {
     static let systemAudioRecording =
         URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AudioCapture")!
 
-    /// System Settings → Privacy & Security → Microphone (Sonoma).
-    static let microphone =
-        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
-
     static func openSystemAudioRecording() {
         open(systemAudioRecording, fallbackPanel: "Privacy_AudioCapture")
-    }
-
-    static func openMicrophone() {
-        open(microphone, fallbackPanel: "Privacy_Microphone")
     }
 
     private static func open(_ url: URL, fallbackPanel: String) {

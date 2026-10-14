@@ -1,86 +1,62 @@
 # TapScribe (audio-in-the-middle)
 
-Menu bar app for macOS 14.4+ that records **system audio** (Core Audio process tap) and optionally **microphone** on separate tracks, then transcribes locally with WhisperKit (Polish) **after** you stop recording.
+Aplikacja w pasku menu dla macOS 14.4+ nagrywająca **dźwięk systemu** (process tap Core Audio) i po zatrzymaniu transkrybująca lokalnie przez WhisperKit (język polski).
 
 ## M1 workflow (local git only)
 
-This tree on the M1 Pro uses **local-only git** (no remote). Do **not** run `git pull` / `git fetch` to update code.
+Repozytorium na M1 Pro to **tylko lokalny git** (bez remote). **Nie** używaj `git pull` / `git fetch`.
 
-1. Cursor private worker commits on **`main`** on the same machine.
-2. You rebuild the app:
+1. Agent Cursor commituje na **`main`** na tej samej maszynie.
+2. Ty budujesz aplikację:
 
    ```bash
    cd ~/Projects/personal/audio-in-the-middle
    ./scripts/build.sh
    ```
 
-3. Optional — see the last agent commit:
+3. Opcjonalnie: `git log -1 --oneline`
 
-   ```bash
-   git log -1 --oneline
-   ```
+Szczegóły: [docs/workflow-m1.md](docs/workflow-m1.md).
 
-Details: [docs/workflow-m1.md](docs/workflow-m1.md).
+## Gdzie są nagrania
 
-## Where recordings are saved
-
-Each session is a folder:
+Każda sesja to folder:
 
 `~/Recordings/<YYYY-MM-DD_HH-mm-ss>/`
 
-Typical files: `system.caf` (always when capture succeeds), optional `mic.caf`, later `transcript.txt` and `transcript.srt`.
+Pliki: **`system.caf`**, po transkrypcji **`transcript.txt`** i **`transcript.srt`**.
 
-In the menu bar app use **Pokaż w Finderze** (last session) or **Otwórz folder nagrań…** (`~/Recordings`).
+W menu: **Lista nagrań**, **Pokaż w Finderze**, **Otwórz folder nagrań…**
 
-## Sound output (not BlackHole)
+## Dźwięk wyjściowy (nie BlackHole)
 
-TapScribe does **not** install a virtual output device and does **not** appear in **System Settings → Sound → Output**. It uses a **private aggregate device** only while recording; playback stays on your normal output (built‑in speakers, headphones, etc.). This is intentional — no BlackHole and no Multi‑Output Device.
+TapScribe **nie** pojawia się w **Ustawienia systemowe → Dźwięk → Wyjście**. Podczas nagrywania używa prywatnego urządzenia agregującego; odtwarzanie zostaje na głośnikach / słuchawkach.
 
-## Permissions (TCC)
+## Uprawnienia (TCC)
 
-On **Start nagrywania**, TapScribe ( **no Whisper model required** ):
+Przy **Start nagrywania** (bez modelu Whisper):
 
-1. Requests **system audio recording** consent and starts the process tap → `system.caf`.
-2. Requests **microphone** access only if **Nagrywaj mikrofon** is enabled → optional `mic.caf`.
+1. Zgoda na **nagrywanie dźwięku systemu** → `system.caf`.
 
-Transcription runs **after Stop**, in the background. If the Whisper model is missing, it is **downloaded then**; recording is not blocked.
+Transkrypcja **po Stop**, w tle. Brak modelu → pobieranie przy pierwszej transkrypcji; nagrywanie nie jest blokowane.
 
-Use menu items **Ustawienia: dźwięk systemu…** and **Ustawienia: mikrofon…** if access was denied.
+Menu: **Ustawienia: dźwięk systemu…**
 
-### Stable bundle ID and signing
+### Podpis i bundle ID
 
-TCC remembers grants per **bundle identifier + code signature**.
+TCC pamięta **bundle ID + podpis**. Stały ID: `com.tapscribe.app`. Dla trwałych zgód: podpis **Apple Development** i `DEVELOPMENT_TEAM` przy `./scripts/build.sh`.
 
-- Bundle ID is fixed: `com.tapscribe.app` (`project.yml` / `PRODUCT_BUNDLE_IDENTIFIER`).
-- **Unsigned / adhoc** debug builds (`CODE_SIGNING_ALLOWED=NO`) often **do not show prompts** or **reset permissions every build**.
-- For persistent TCC: sign with **Apple Development** (Personal Team), set `DEVELOPMENT_TEAM` in the environment, and run `./scripts/build.sh` without disabling signing. Confirm with:
-
-  ```bash
-  codesign -dv --verbose=2 build/Build/Products/Debug/TapScribe.app 2>&1 | grep Authority
-  ```
-
-Reset permissions if needed:
-
-```bash
-tccutil reset All com.tapscribe.app
-```
-
-## Diagnostics (no menu)
-
-After building:
+## Diagnostyka
 
 ```bash
 APP=build/Build/Products/Debug/TapScribe.app/Contents/MacOS/TapScribe
-"$APP" --probe-capture          # mic + system tap probe
-"$APP" --probe-capture --no-mic # system only
+"$APP" --probe-capture
 ```
 
-Logs TCC state, signing summary, and a short tap session to `/tmp`.
+## Miejsce na dysku
 
-## Disk space
-
-- **Runtime:** ~**8 GB** free recommended (Whisper model ~1.5 GB + headroom). Checked by `scripts/check-prerequisites.sh`.
-- **One-time Xcode install:** plan ~15–20 GB; the old “40 GB” figure in the product plan was for **first-time Xcode + model**, not daily use.
+- **Na co dzień:** ~**8 GB** wolnego (`scripts/check-prerequisites.sh`).
+- Jednorazowo Xcode: ~15–20 GB.
 
 ## Build
 

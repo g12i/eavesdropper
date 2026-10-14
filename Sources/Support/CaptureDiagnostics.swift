@@ -1,11 +1,10 @@
-import AVFoundation
 import Foundation
 import OSLog
 
 enum CaptureDiagnostics {
     private static let logger = Logger(subsystem: "com.tapscribe.app", category: "CaptureDiagnostics")
 
-    static func printReport(includeMicrophone: Bool) {
+    static func printReport() {
         let bundleID = Bundle.main.bundleIdentifier ?? "(unknown)"
         let appPath = Bundle.main.bundleURL.path
         let signing = signingSummary(for: appPath)
@@ -19,11 +18,6 @@ enum CaptureDiagnostics {
         let systemStatus = SystemAudioCapturePermission.currentStatus()
         print("  system_audio_tcc: \(systemStatus.rawValue)")
 
-        if includeMicrophone {
-            let mic = MicrophonePermission.authorizationStatus()
-            print("  microphone_av: \(mic.rawValue)")
-        }
-
         do {
             try SystemAudioCapturePermission.ensureAuthorized()
             print("  system_audio_request: ok")
@@ -32,20 +26,11 @@ enum CaptureDiagnostics {
             logger.error("System audio request failed: \(error.localizedDescription, privacy: .public)")
         }
 
-        if includeMicrophone {
-            do {
-                try MicrophonePermission.ensureAuthorized()
-                print("  microphone_request: ok")
-            } catch {
-                print("  microphone_request: FAIL — \(error.localizedDescription)")
-            }
-        }
-
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("tapscribe-probe-\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let session = RecordingSession()
-            try session.start(in: tempDir, recordMicrophone: includeMicrophone)
+            try session.start(in: tempDir)
             try session.stop()
             let systemPath = tempDir.appendingPathComponent("system.caf")
             let attrs = try? FileManager.default.attributesOfItem(atPath: systemPath.path)

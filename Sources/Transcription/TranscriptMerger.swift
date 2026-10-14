@@ -7,19 +7,14 @@ enum TranscriptMerger {
         "thank you for watching",
     ]
 
-    static func merge(
-        micSegments: [TranscriptSegment],
-        systemSegments: [TranscriptSegment]
-    ) -> [TranscriptSegment] {
-        let filtered = (micSegments + systemSegments)
-            .filter(shouldKeep)
-            .sorted { $0.start < $1.start }
+    static func merge(_ segments: [TranscriptSegment]) -> [TranscriptSegment] {
+        let filtered = segments.filter(shouldKeep).sorted { $0.start < $1.start }
         return coalesce(filtered)
     }
 
     static func writeTXT(_ segments: [TranscriptSegment], to url: URL) throws {
         let lines = segments.map { segment in
-            "[\(formatClock(segment.start))] \(segment.speaker.rawValue): \(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))"
+            "[\(formatClock(segment.start))] \(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))"
         }
         try lines.joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
     }
@@ -27,7 +22,7 @@ enum TranscriptMerger {
     static func writeSRT(_ segments: [TranscriptSegment], to url: URL) throws {
         var blocks: [String] = []
         for (index, segment) in segments.enumerated() {
-            let text = "\(segment.speaker.rawValue): \(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))"
+            let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
             blocks.append(
                 """
                 \(index + 1)
@@ -57,14 +52,11 @@ enum TranscriptMerger {
         var current = segments[0]
 
         for segment in segments.dropFirst() {
-            if segment.speaker == current.speaker,
-               segment.start - current.end <= mergeGap
-            {
+            if segment.start - current.end <= mergeGap {
                 current = TranscriptSegment(
                     start: current.start,
                     end: max(current.end, segment.end),
                     text: [current.text, segment.text].joined(separator: " "),
-                    speaker: current.speaker,
                     noSpeechProb: max(current.noSpeechProb ?? 0, segment.noSpeechProb ?? 0)
                 )
             } else {

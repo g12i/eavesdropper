@@ -6,8 +6,7 @@ enum TapScribeMain {
     static func main() {
         if CommandLine.arguments.contains("--probe-capture") {
             bootstrapAppRuntime()
-            let includeMic = !CommandLine.arguments.contains("--no-mic")
-            CaptureDiagnostics.printReport(includeMicrophone: includeMic)
+            CaptureDiagnostics.printReport()
             exit(0)
         }
 
@@ -34,25 +33,27 @@ enum TapScribeMain {
 struct TapScribeApp: App {
     @State private var isRecording = false
     @State private var session = RecordingSession()
-    @AppStorage("recordMicrophone") private var recordMicrophone = false
     @AppStorage("lastSessionPath") private var lastSessionPath = ""
-    @State private var status = "Gotowy"
+    @State private var transcriptionPhase: TranscriptionPhase = .idle
     @State private var transcriptionTask: Task<Void, Never>?
+    @State private var recordingsRefreshToken = UUID()
 
     private var lastSessionURL: URL? {
         guard !lastSessionPath.isEmpty else { return nil }
         return URL(fileURLWithPath: lastSessionPath, isDirectory: true)
     }
 
-    private var recordingsPathHint: String {
-        if let lastSessionURL {
-            return "Ostatnie: \(RecordingsLocation.displayPath(for: lastSessionURL))"
-        }
-        return "Nagrania: ~/Recordings/<YYYY-MM-DD_HH-mm-ss>/"
+    private var recentRecordings: [RecordingSessionEntry] {
+        _ = recordingsRefreshToken
+        return RecordingsIndex.recent(limit: 15)
     }
 
-    private var bundleLabel: String {
-        Bundle.main.bundleIdentifier ?? "?"
+    private var statusMainLine: String {
+        AppStatusText.mainLine(isRecording: isRecording, transcription: transcriptionPhase)
+    }
+
+    private var statusTranscriptLine: String {
+        AppStatusText.transcriptLine(for: lastSessionURL, transcription: transcriptionPhase)
     }
 
     var body: some Scene {
@@ -60,36 +61,49 @@ struct TapScribeApp: App {
             Button(isRecording ? "Stop nagrywania" : "Start nagrywania") {
                 Task { await toggleRecording() }
             }
-            Text("Nagrywa dźwięk z komputera (YouTube, rozmowy w aplikacjach). Nie pojawia się na liście wyjść w Ustawieniach → Dźwięk.")
+
+            Text("Nagrywa dźwięk z komputera (YouTube, rozmowy). Nie zmienia wyjścia dźwięku w Ustawieniach.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Toggle("Nagrywaj mikrofon (Twój głos)", isOn: $recordMicrophone)
-                .disabled(isRecording)
+
             Divider()
+
+            Menu("Lista nagrań") {
+                if recentRecordings.isEmpty {
+                    Text("Brak nagrań w ~/Recordings")
+                } else {
+                    ForEach(recentRecordings) { entry in
+                        Button(entry.menuTitle) {
+                            lastSessionPath = entry.url.path
+                            RecordingsLocation.openInFinder(sessionDirectory: entry.url)
+                            refreshRecordingsList()
+                        }
+                    }
+                }
+            }
+
             Button("Pokaż w Finderze") {
                 RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
             }
             Button("Otwórz folder nagrań…") {
                 RecordingsLocation.openRecordingsRootInFinder()
             }
+
             Divider()
+
             Button("Ustawienia: dźwięk systemu…") {
                 PrivacySettings.openSystemAudioRecording()
             }
-            Button("Ustawienia: mikrofon…") {
-                PrivacySettings.openMicrophone()
-            }
+
             Divider()
-            Text(status)
+
+            Text(statusMainLine)
                 .font(.caption)
-            Text(recordingsPathHint)
+            Text(statusTranscriptLine)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Bundle: \(bundleLabel)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+
             Button("Zakończ") {
                 transcriptionTask?.cancel()
                 NSApplication.shared.terminate(nil)
@@ -108,16 +122,18 @@ struct TapScribeApp: App {
                 if let dir {
                     lastSessionPath = dir.path
                 }
-                status = "Nagranie zapisane (dźwięk systemu\(recordMicrophone ? " + mikrofon" : ""))."
+                refreshRecordingsList()
+                transcriptionPhase = .idle
                 startTranscription(for: dir)
             } catch {
                 isRecording = false
-                status = recordingErrorMessage(for: error)
+                transcriptionPhase = .failed(message: recordingErrorMessage(for: error))
             }
             return
         }
 
         transcriptionTask?.cancel()
+        transcriptionPhase = .idle
         NSApplication.shared.activate(ignoringOtherApps: true)
 
         let formatter = DateFormatter()
@@ -127,51 +143,54 @@ struct TapScribeApp: App {
             .appendingPathComponent("Recordings/\(name)", isDirectory: true)
 
         do {
-            try session.start(in: dir, recordMicrophone: recordMicrophone)
+            try session.start(in: dir)
             isRecording = true
-            status = recordMicrophone
-                ? "Nagrywanie: dźwięk systemu + mikrofon…"
-                : "Nagrywanie: dźwięk systemu…"
+            lastSessionPath = dir.path
+            transcriptionPhase = .idle
         } catch {
-            status = recordingErrorMessage(for: error)
+            transcriptionPhase = .failed(message: recordingErrorMessage(for: error))
         }
     }
 
     @MainActor
     private func startTranscription(for directory: URL?) {
         guard let directory else { return }
+        transcriptionPhase = .running(detail: "przygotowanie…")
+
         transcriptionTask = Task {
             do {
                 try await TranscriptionService.transcribeSession(at: directory) { message in
                     Task { @MainActor in
-                        status = message
+                        let detail = AppStatusText.polishTranscriptionDetail(from: message)
+                        transcriptionPhase = .running(detail: detail)
                     }
                 }
-                status = "Transkrypt gotowy"
+                transcriptionPhase = .succeeded
+                refreshRecordingsList()
             } catch is CancellationError {
-                status = "Transkrypcja anulowana (nagranie zapisane)."
+                transcriptionPhase = .cancelled
             } catch {
-                status = "Nagranie OK. \(transcriptionErrorMessage(for: error))"
+                transcriptionPhase = .failed(message: transcriptionErrorMessage(for: error))
             }
         }
     }
 
+    @MainActor
+    private func refreshRecordingsList() {
+        recordingsRefreshToken = UUID()
+    }
+
     private func recordingErrorMessage(for error: Error) -> String {
         if let sessionError = error as? RecordingSessionError {
-            switch sessionError {
-            case .systemAudio:
-                return "Nagrywanie — dźwięk systemu: \(sessionError.localizedDescription ?? "błąd")"
-            case .microphone:
-                return "Nagrywanie — mikrofon: \(sessionError.localizedDescription ?? "błąd") (dźwięk systemu działa po wyłączeniu mikrofonu)"
-            }
+            return sessionError.localizedDescription ?? "błąd nagrywania"
         }
-        return "Nagrywanie: \(error.localizedDescription)"
+        return error.localizedDescription
     }
 
     private func transcriptionErrorMessage(for error: Error) -> String {
         if let t = error as? TranscriberError {
             return t.localizedDescription ?? "błąd transkrypcji"
         }
-        return "Transkrypcja: \(error.localizedDescription)"
+        return error.localizedDescription
     }
 }

@@ -30,7 +30,7 @@ enum Transcriber {
         return whisperKit
     }
 
-    static func transcribe(path: URL, speaker: TranscriptSpeaker) async throws -> [TranscriptSegment] {
+    static func transcribe(path: URL) async throws -> [TranscriptSegment] {
         let whisperKit = try await makeWhisperKit()
         let decodeOptions = DecodingOptions(
             task: .transcribe,
@@ -38,12 +38,11 @@ enum Transcriber {
             wordTimestamps: false,
             noSpeechThreshold: 0.6
         )
-        return try await transcribeFile(path, speaker: speaker, whisperKit: whisperKit, decodeOptions: decodeOptions)
+        return try await transcribeFile(path, whisperKit: whisperKit, decodeOptions: decodeOptions)
     }
 
     static func transcribeFile(
         _ path: URL,
-        speaker: TranscriptSpeaker,
         whisperKit: WhisperKit,
         decodeOptions: DecodingOptions
     ) async throws -> [TranscriptSegment] {
@@ -62,7 +61,7 @@ enum Transcriber {
         case let .success(transcriptions):
             let elapsed = Date().timeIntervalSince(started)
             fputs("Transcription finished in \(String(format: "%.1f", elapsed))s\n", stderr)
-            return mapSegments(transcriptions, speaker: speaker)
+            return mapSegments(transcriptions)
         }
     }
 
@@ -74,14 +73,13 @@ enum Transcriber {
         return remote.default
     }
 
-    private static func mapSegments(_ results: [TranscriptionResult], speaker: TranscriptSpeaker) -> [TranscriptSegment] {
+    private static func mapSegments(_ results: [TranscriptionResult]) -> [TranscriptSegment] {
         results.flatMap { result in
             result.segments.map { segment in
                 TranscriptSegment(
                     start: TimeInterval(segment.start),
                     end: TimeInterval(segment.end),
                     text: segment.text,
-                    speaker: speaker,
                     noSpeechProb: segment.noSpeechProb
                 )
             }
@@ -99,7 +97,7 @@ enum TranscriberError: LocalizedError {
         case .emptyResult:
             "Brak wyniku transkrypcji."
         case .noAudioFiles:
-            "Brak plików nagrania do transkrypcji."
+            "Brak pliku system.caf do transkrypcji."
         case let .whisperFailed(detail):
             "Transkrypcja nie powiodła się: \(detail)"
         }
