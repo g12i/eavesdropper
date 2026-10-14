@@ -18,6 +18,11 @@ struct MenuHeaderModel: Equatable {
     let title: String
     let tone: RecordingStatusTone
     let missingRequirements: [ConfigurationRequirement]
+
+    /// True when the menu shows **Wymaga konfiguracji** (Start nagrywania must stay disabled).
+    var needsSetup: Bool {
+        !missingRequirements.isEmpty
+    }
 }
 
 enum MenuHeaderPresentation {

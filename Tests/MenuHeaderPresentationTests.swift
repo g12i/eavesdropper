@@ -39,6 +39,18 @@ final class MenuHeaderPresentationTests: XCTestCase {
         XCTAssertEqual(model.title, "Wymaga konfiguracji")
         XCTAssertEqual(model.tone, .configuration)
         XCTAssertEqual(model.missingRequirements, [.systemAudioPermission, .whisperModel])
+        XCTAssertTrue(model.needsSetup)
+    }
+
+    func testNeedsSetupFalseWhenGotowe() {
+        let model = MenuHeaderPresentation.model(
+            isRecording: false,
+            recordingElapsedMMSS: nil,
+            systemAudioStatus: .authorized,
+            modelReady: true,
+            modelBusy: false
+        )
+        XCTAssertFalse(model.needsSetup)
     }
 
     func testRecordingElapsedFormat() {

@@ -82,9 +82,11 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         addMenuHeader(for: app)
         menu.addItem(.separator())
 
+        let headerModel = app.menuHeader
         let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
         let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleRecording(_:)), keyEquivalent: "")
         toggle.target = self
+        toggle.isEnabled = app.isRecording || !headerModel.needsSetup
         menu.addItem(toggle)
 
         menu.addItem(.separator())
