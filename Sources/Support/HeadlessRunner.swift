@@ -8,7 +8,7 @@ enum HeadlessRunner {
         }
 
         if args.contains("--probe-capture") {
-            CaptureDiagnostics.printReport()
+            await CaptureDiagnostics.printReport()
             exit(0)
         }
 
@@ -37,7 +37,7 @@ enum HeadlessRunner {
         let session = RecordingSession()
 
         do {
-            try session.start(in: outDir)
+            try await session.start(in: outDir)
             try await Task.sleep(nanoseconds: UInt64(seconds) * 1_000_000_000)
             try session.stop()
             exit(0)

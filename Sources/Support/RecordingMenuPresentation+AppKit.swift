@@ -4,10 +4,8 @@ extension RecordingMenuPresentation {
     static func menuAttributedTitle(for row: RecordingMenuRow) -> NSAttributedString {
         let line = inlineMenuLine(title: row.title, status: row.trailingStatus)
         let font = NSFont.menuFont(ofSize: 0)
-        let result = NSMutableAttributedString(
-            string: line,
-            attributes: [.font: font, .foregroundColor: NSColor.labelColor]
-        )
+        // No explicit color on the date so AppKit can switch it to the selected-item color on hover.
+        let result = NSMutableAttributedString(string: line, attributes: [.font: font])
         guard !row.trailingStatus.isEmpty else { return result }
 
         let marker = " · \(row.trailingStatus)"

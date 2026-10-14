@@ -42,6 +42,18 @@ final class MenuHeaderPresentationTests: XCTestCase {
         XCTAssertTrue(model.needsSetup)
     }
 
+    func testDownloadInProgressShowsPreparingInsteadOfDownloadAction() {
+        let model = MenuHeaderPresentation.model(
+            isRecording: false,
+            recordingElapsedMMSS: nil,
+            systemAudioStatus: .authorized,
+            modelReady: true,
+            modelBusy: true
+        )
+        XCTAssertEqual(model.missingRequirements, [.whisperModelPreparing])
+        XCTAssertTrue(model.needsSetup)
+    }
+
     func testNeedsSetupFalseWhenGotowe() {
         let model = MenuHeaderPresentation.model(
             isRecording: false,

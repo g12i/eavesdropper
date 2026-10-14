@@ -6,38 +6,6 @@ struct RecordingSessionEntry: Identifiable {
     let folderName: String
     let startedAt: Date?
     let hasTranscript: Bool
-
-    var menuTitle: String {
-        let timeLabel = Self.formatPolish(date: startedAt ?? folderNameAsDate ?? Date.distantPast)
-        let transcriptMark = hasTranscript ? " · transkrypt" : ""
-        return "\(folderName) · \(timeLabel)\(transcriptMark)"
-    }
-
-    private var folderNameAsDate: Date? {
-        Self.sessionDateFormatter.date(from: folderName)
-    }
-
-    private static let sessionDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "pl_PL")
-        f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        return f
-    }()
-
-    private static let displayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "pl_PL")
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
-
-    private static func formatPolish(date: Date) -> String {
-        if date == Date.distantPast {
-            return "—"
-        }
-        return displayFormatter.string(from: date)
-    }
 }
 
 enum RecordingsIndex {

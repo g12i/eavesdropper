@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 enum RecordingStatusTone: Equatable {
     case working
@@ -6,27 +6,12 @@ enum RecordingStatusTone: Equatable {
     case ready
     case noTranscript
     case configuration
-
-    var foregroundColor: Color {
-        switch self {
-        case .working:
-            .yellow
-        case .error:
-            .red
-        case .ready:
-            .green
-        case .noTranscript:
-            .secondary
-        case .configuration:
-            .orange
-        }
-    }
 }
 
 extension RecordingSessionDisplayState {
     var statusTone: RecordingStatusTone {
         switch self {
-        case .recording, .transcribing:
+        case .recording, .queued, .transcribing:
             .working
         case .error, .modelMissing:
             .error
@@ -43,4 +28,3 @@ extension RecordingMenuRow {
         displayState.statusTone
     }
 }
-

@@ -28,6 +28,8 @@ Pliki: **`system.caf`**, po transkrypcji **`transcript.txt`** i **`transcript.sr
 
 W menu paska systemowego (natywne **NSMenu**, jak Rectangle/Cursor): **Start nagrywania**, lista ostatnich sesji (klik → folder w Finderze), Ustawienia. Nagrania krótsze niż 60 s nie są transkrybowane (status „Za krótkie”).
 
+Podczas nagrywania ikona w pasku zmienia się na czerwoną, a czas nagrania widać w nagłówku menu. Ikona ma stałą szerokość — macOS ukrywa elementy paska, które przestają się mieścić obok notcha. Transkrypcje idą po kolei w tle; nowe nagranie nie przerywa transkrypcji poprzedniego („W kolejce” / „Transkrypcja…”).
+
 ## Dźwięk wyjściowy (nie BlackHole)
 
 TapScribe **nie** pojawia się w **Ustawienia systemowe → Dźwięk → Wyjście**. Podczas nagrywania używa prywatnego urządzenia agregującego; odtwarzanie zostaje na głośnikach / słuchawkach.

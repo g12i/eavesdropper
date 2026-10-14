@@ -7,7 +7,14 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
     private var menuIsOpen = false
-    private var pendingMenuRebuild = false
+    private var displayedRecordingState: Bool?
+
+    /// Items kept so the open menu can be updated in place (elapsed time, row status) without rebuilding.
+    private var headerItem: NSMenuItem?
+    private var headerIsRecording = false
+    private var toggleItem: NSMenuItem?
+    private var rowItems: [NSMenuItem] = []
+    private var rowIDs: [String] = []
 
     private static let statusSymbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
 
@@ -18,76 +25,72 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     func install() {
         guard statusItem == nil else { return }
 
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Image-only, same-size symbols in both states: a status item that grows (e.g. an MM:SS title) is
+        // silently hidden by macOS when it no longer fits beside the notch.
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.isVisible = true
+        if let button = item.button {
+            button.imagePosition = .imageOnly
+            button.imageScaling = .scaleProportionallyDown
+            button.title = ""
+        }
         menu.delegate = self
         menu.autoenablesItems = false
-        if let button = statusItem?.button {
-            button.imagePosition = .imageLeading
-            button.imageScaling = .scaleProportionallyDown
-            button.appearsDisabled = false
-        }
-        statusItem?.menu = menu
-        updateStatusBar(
-            isRecording: TapScribeApplicationController.shared.isRecording,
-            elapsedMMSS: TapScribeApplicationController.shared.recordingElapsedMMSS
-        )
+        item.menu = menu
+        statusItem = item
+
+        updateStatusButton()
         rebuildMenu()
     }
 
-    func updateStatusBar(isRecording: Bool, elapsedMMSS: String?) {
+    /// Cheap enough to call every second: updates the icon only on state change and patches the open menu in place.
+    /// A closed menu is rebuilt lazily in `menuNeedsUpdate`.
+    func refresh() {
+        updateStatusButton()
+        if menuIsOpen {
+            updateOpenMenuInPlace()
+        }
+    }
+
+    private func updateStatusButton() {
         guard let statusItem, let button = statusItem.button else { return }
-
-        statusItem.length = NSStatusItem.variableLength
-        button.imagePosition = .imageLeading
-        button.imageScaling = .scaleProportionallyDown
-        button.appearsDisabled = false
-        button.contentTintColor = nil
-
-        if isRecording {
-            button.title = elapsedMMSS ?? "00:00"
-        } else {
-            button.title = ""
+        if !statusItem.isVisible {
+            statusItem.isVisible = true
         }
 
-        guard let image = Self.statusBarImage(isRecording: isRecording) else { return }
-        button.image = image
+        let isRecording = TapScribeApplicationController.shared.isRecording
+        guard displayedRecordingState != isRecording else { return }
+        displayedRecordingState = isRecording
+
+        button.image = Self.statusBarImage(isRecording: isRecording)
+        button.toolTip = isRecording ? "TapScribe — nagrywanie" : "TapScribe"
     }
 
     private static func statusBarImage(isRecording: Bool) -> NSImage? {
         if isRecording {
             let palette = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
-                .applying(Self.statusSymbolConfiguration)
-            let image = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe")?
-                .withSymbolConfiguration(palette)
-            return image ?? NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe")
+                .applying(statusSymbolConfiguration)
+            let base = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe — nagrywanie")
+            return base?.withSymbolConfiguration(palette) ?? base
         }
 
         guard let base = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "TapScribe") else {
             return nil
         }
-        let image = base.withSymbolConfiguration(Self.statusSymbolConfiguration) ?? base
+        let image = base.withSymbolConfiguration(statusSymbolConfiguration) ?? base
         image.isTemplate = true
         return image
     }
 
-    /// Rebuilds the dropdown unless it is on-screen (AppKit crashes on `removeAllItems` while tracking).
-    func scheduleMenuRebuild() {
-        guard !menuIsOpen else {
-            pendingMenuRebuild = true
-            return
-        }
-        rebuildMenu()
-    }
+    // MARK: - Menu construction
 
-    func refreshIfNeeded() {
-        let app = TapScribeApplicationController.shared
-        updateStatusBar(isRecording: app.isRecording, elapsedMMSS: app.recordingElapsedMMSS)
-        scheduleMenuRebuild()
-    }
-
-    func rebuildMenu() {
+    private func rebuildMenu() {
         let app = TapScribeApplicationController.shared
         menu.removeAllItems()
+        headerItem = nil
+        toggleItem = nil
+        rowItems = []
+        rowIDs = []
 
         let headerModel = app.menuHeader
         if headerModel.shouldShowInMenu {
@@ -95,11 +98,11 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
 
-        let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
-        let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleRecording(_:)), keyEquivalent: "")
+        let toggle = NSMenuItem(title: "", action: #selector(toggleRecording(_:)), keyEquivalent: "")
         toggle.target = self
-        toggle.isEnabled = app.isRecording || !headerModel.needsSetup
+        configureToggle(toggle, header: headerModel)
         menu.addItem(toggle)
+        toggleItem = toggle
 
         menu.addItem(.separator())
 
@@ -110,35 +113,28 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
             menu.addItem(empty)
         } else {
             for row in rows {
-                let item = NSMenuItem()
-                item.representedObject = row.url
+                let item = NSMenuItem(title: "", action: #selector(revealInFinder(_:)), keyEquivalent: "")
                 item.target = self
-                item.action = #selector(revealInFinder(_:))
-                item.isEnabled = true
-                item.attributedTitle = RecordingMenuPresentation.menuAttributedTitle(for: row)
-                item.image = RecordingMenuPresentation.menuSymbolImage(for: row)
+                item.representedObject = row.url
+                configureRow(item, row: row)
                 menu.addItem(item)
+                rowItems.append(item)
             }
+            rowIDs = rows.map(\.id)
         }
 
         menu.addItem(.separator())
 
         let settings = NSMenuItem(title: "Ustawienia", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu()
-        settingsMenu.autoenablesItems = true
-
-        settingsMenu.addItem(withTitle: "Model transkrypcji…", action: #selector(openModelSettings(_:)), keyEquivalent: "")
-        settingsMenu.addItem(withTitle: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)), keyEquivalent: "")
+        settingsMenu.autoenablesItems = false
+        addItem(to: settingsMenu, title: "Model transkrypcji…", action: #selector(openModelSettings(_:)))
+        let redownload = addItem(to: settingsMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
+        redownload.isEnabled = !app.isTranscribing && !app.whisperModelStore.isBusy
         settingsMenu.addItem(.separator())
-        settingsMenu.addItem(
-            withTitle: "Dźwięk systemu (TCC)…",
-            action: #selector(openSystemAudioSettings(_:)),
-            keyEquivalent: ""
-        )
-        for item in settingsMenu.items where item.action != nil {
-            item.target = self
-        }
-        menu.setSubmenu(settingsMenu, for: settings)
+        addItem(to: settingsMenu, title: "Dźwięk systemu (TCC)…", action: #selector(openSystemAudioSettings(_:)))
+        settings.submenu = settingsMenu
+        menu.addItem(settings)
 
         let quit = NSMenuItem(title: "Zakończ", action: #selector(quit(_:)), keyEquivalent: "q")
         quit.keyEquivalentModifierMask = .command
@@ -146,41 +142,30 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(quit)
     }
 
-    nonisolated func menuWillOpen(_ menu: NSMenu) {
-        MainActor.assumeIsolated {
-            menuIsOpen = true
-            pendingMenuRebuild = false
-            let app = TapScribeApplicationController.shared
-            app.refreshRecordingsList()
-            rebuildMenu()
-            Task { @MainActor in
-                await app.whisperModelStore.refreshReadyState()
-                rebuildMenu()
-            }
-        }
+    @discardableResult
+    private func addItem(to menu: NSMenu, title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        menu.addItem(item)
+        return item
     }
 
-    nonisolated func menuDidClose(_ menu: NSMenu) {
-        MainActor.assumeIsolated {
-            menuIsOpen = false
-            if pendingMenuRebuild {
-                pendingMenuRebuild = false
-                rebuildMenu()
-            }
-            let app = TapScribeApplicationController.shared
-            updateStatusBar(isRecording: app.isRecording, elapsedMMSS: app.recordingElapsedMMSS)
-        }
+    private func configureToggle(_ item: NSMenuItem, header: MenuHeaderModel) {
+        let app = TapScribeApplicationController.shared
+        item.title = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
+        item.isEnabled = !app.isTogglingRecording && (app.isRecording || !header.needsSetup)
+    }
+
+    private func configureRow(_ item: NSMenuItem, row: RecordingMenuRow) {
+        item.attributedTitle = RecordingMenuPresentation.menuAttributedTitle(for: row)
+        item.image = RecordingMenuPresentation.menuSymbolImage(for: row)
     }
 
     private func addMenuHeader(model: MenuHeaderModel) {
-        let header = NSMenuItem()
-        header.attributedTitle = NSAttributedString(
-            string: model.title,
-            attributes: [
-                .foregroundColor: model.tone.nsColor,
-                .font: NSFont.menuFont(ofSize: 12),
-            ]
-        )
+        let header = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        header.attributedTitle = Self.headerTitle(model)
+        headerItem = header
+        headerIsRecording = model.isRecording
 
         if model.isRecording {
             header.isEnabled = false
@@ -189,23 +174,88 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         }
 
         let configMenu = NSMenu()
+        configMenu.autoenablesItems = false
+        let store = TapScribeApplicationController.shared.whisperModelStore
         for requirement in model.missingRequirements {
             let item = NSMenuItem(title: requirement.menuTitle, action: nil, keyEquivalent: "")
+            item.target = self
             switch requirement {
             case .systemAudioPermission:
                 item.action = #selector(openSystemAudioSettings(_:))
             case .whisperModel:
                 item.action = #selector(openModelSettings(_:))
+            case .whisperModelPreparing:
+                item.title = store.statusLine
+                item.action = #selector(openModelSettings(_:))
             }
-            item.target = self
             configMenu.addItem(item)
         }
-        menu.setSubmenu(configMenu, for: header)
+        header.submenu = configMenu
         menu.addItem(header)
     }
 
+    private static func headerTitle(_ model: MenuHeaderModel) -> NSAttributedString {
+        NSAttributedString(
+            string: model.title,
+            attributes: [
+                .foregroundColor: model.tone.nsColor,
+                .font: NSFont.menuFont(ofSize: 12),
+            ]
+        )
+    }
+
+    /// Only touches existing items: removing/inserting while the menu tracks is what destabilised AppKit before.
+    private func updateOpenMenuInPlace() {
+        let app = TapScribeApplicationController.shared
+        let headerModel = app.menuHeader
+
+        if let headerItem, headerModel.shouldShowInMenu, headerModel.isRecording == headerIsRecording {
+            headerItem.attributedTitle = Self.headerTitle(headerModel)
+            if headerModel.missingRequirements.contains(.whisperModelPreparing),
+               let preparing = headerItem.submenu?.items.first(where: { $0.action == #selector(openModelSettings(_:)) }) {
+                preparing.title = app.whisperModelStore.statusLine
+            }
+        }
+        if let toggleItem {
+            configureToggle(toggleItem, header: headerModel)
+        }
+
+        let rows = app.recordingMenuRows
+        guard rows.map(\.id) == rowIDs else { return }
+        for (item, row) in zip(rowItems, rows) {
+            configureRow(item, row: row)
+        }
+    }
+
+    // MARK: - NSMenuDelegate
+
+    nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            guard menu === self.menu else { return }
+            TapScribeApplicationController.shared.whisperModelStore.refreshReadyState()
+            rebuildMenu()
+        }
+    }
+
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            guard menu === self.menu else { return }
+            menuIsOpen = true
+        }
+    }
+
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            guard menu === self.menu else { return }
+            menuIsOpen = false
+            updateStatusButton()
+        }
+    }
+
+    // MARK: - Actions
+
     @objc private func toggleRecording(_ sender: NSMenuItem) {
-        Task { @MainActor in
+        Task {
             await TapScribeApplicationController.shared.toggleRecording()
         }
     }
@@ -220,7 +270,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func redownloadModel(_ sender: NSMenuItem) {
-        Task { await TapScribeApplicationController.shared.prepareRedownloadOnboarding() }
+        TapScribeApplicationController.shared.prepareRedownloadOnboarding()
     }
 
     @objc private func openSystemAudioSettings(_ sender: NSMenuItem) {

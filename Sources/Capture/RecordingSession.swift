@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import OSLog
 
@@ -14,14 +13,12 @@ final class RecordingSession {
 
     var isRecording: Bool { systemTap.isRunning }
 
-    func start(in directory: URL) throws {
+    func start(in directory: URL) async throws {
+        let createdDirectory = !FileManager.default.fileExists(atPath: directory.path)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        outputDirectory = directory
-
-        activateForCapture()
 
         do {
-            try SystemAudioCapturePermission.ensureAuthorized()
+            try await SystemAudioCapturePermission.ensureAuthorized()
             let systemURL = directory.appendingPathComponent("system.caf")
             try systemTap.start(writingTo: systemURL)
             logger.info("System audio tap started")
@@ -32,28 +29,24 @@ final class RecordingSession {
             )
             let data = try JSONEncoder().encode(meta)
             try data.write(to: directory.appendingPathComponent("session.json"))
+            outputDirectory = directory
         } catch {
             logger.error("Recording start failed (system): \(error.localizedDescription, privacy: .public)")
             try? systemTap.stop()
             outputDirectory = nil
+            if createdDirectory {
+                try? FileManager.default.removeItem(at: directory)
+            }
             throw RecordingSessionError.systemAudio(underlying: error)
         }
     }
 
     func stop() throws {
+        defer { outputDirectory = nil }
         try systemTap.stop()
     }
 
     func systemAudioURL() -> URL? {
         outputDirectory?.appendingPathComponent("system.caf")
-    }
-
-    private func activateForCapture() {
-        let activate = { NSApplication.shared.activate(ignoringOtherApps: true) }
-        if Thread.isMainThread {
-            activate()
-        } else {
-            DispatchQueue.main.sync(execute: activate)
-        }
     }
 }

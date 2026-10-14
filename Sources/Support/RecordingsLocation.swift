@@ -7,55 +7,28 @@ enum RecordingsLocation {
             .appendingPathComponent("Recordings", isDirectory: true)
     }
 
+    /// `~/Recordings/<yyyy-MM-dd_HH-mm-ss>/` for a session starting now.
+    static func newSessionDirectory(now: Date = Date()) -> URL {
+        rootDirectory.appendingPathComponent(sessionFolderFormatter.string(from: now), isDirectory: true)
+    }
+
     static func ensureRootExists() throws {
         try FileManager.default.createDirectory(at: rootDirectory, withIntermediateDirectories: true)
     }
 
-    static func displayPath(for url: URL) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let path = url.path
-        if path.hasPrefix(home) {
-            return "~" + path.dropFirst(home.count)
-        }
-        return path
-    }
-
-    static func openInFinder(sessionDirectory: URL?) {
-        do {
-            try ensureRootExists()
-        } catch {
-            return
-        }
-
-        if let sessionDirectory, FileManager.default.fileExists(atPath: sessionDirectory.path) {
-            let highlight = sessionDirectory.appendingPathComponent("system.caf")
-            let urls: [URL]
-            if FileManager.default.fileExists(atPath: highlight.path) {
-                urls = [highlight]
-            } else {
-                urls = [sessionDirectory]
-            }
-            NSWorkspace.shared.activateFileViewerSelecting(urls)
-            return
-        }
-
-        NSWorkspace.shared.open(rootDirectory)
-    }
-
     static func revealSessionFolder(_ sessionDirectory: URL) {
         guard FileManager.default.fileExists(atPath: sessionDirectory.path) else {
-            openInFinder(sessionDirectory: nil)
+            try? ensureRootExists()
+            NSWorkspace.shared.open(rootDirectory)
             return
         }
         NSWorkspace.shared.activateFileViewerSelecting([sessionDirectory])
     }
 
-    static func openRecordingsRootInFinder() {
-        do {
-            try ensureRootExists()
-            NSWorkspace.shared.open(rootDirectory)
-        } catch {
-            // best effort
-        }
-    }
+    private static let sessionFolderFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        return f
+    }()
 }

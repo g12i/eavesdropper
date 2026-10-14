@@ -2,92 +2,25 @@ import Foundation
 
 enum TranscriptionPhase: Equatable {
     case idle
+    case queued
     case running(detail: String)
     case succeeded
     case failed(message: String)
+    case modelMissing
     case cancelled
     case skippedTooShort
+
+    var isActive: Bool {
+        switch self {
+        case .queued, .running:
+            true
+        default:
+            false
+        }
+    }
 }
 
 enum AppStatusText {
-    static func compactGlobalStatus(
-        isRecording: Bool,
-        transcription: TranscriptionPhase,
-        modelReady: Bool,
-        modelBusy: Bool
-    ) -> String {
-        let activity: String
-        if isRecording {
-            activity = "Nagrywanie"
-        } else {
-            switch transcription {
-            case .idle, .cancelled, .succeeded, .skippedTooShort:
-                activity = "Gotowy"
-            case .running:
-                activity = "Transkrypcja"
-            case .failed:
-                activity = "Błąd"
-            }
-        }
-
-        let whisper: String
-        if modelReady {
-            whisper = "Whisper OK"
-        } else if modelBusy {
-            whisper = "Whisper…"
-        } else {
-            whisper = "Whisper brak"
-        }
-
-        return "\(activity) · \(whisper)"
-    }
-
-    static func mainLine(isRecording: Bool, transcription: TranscriptionPhase) -> String {
-        if isRecording {
-            return "Status: nagrywanie…"
-        }
-        switch transcription {
-        case .idle:
-            return "Status: gotowy"
-        case let .running(detail):
-            if detail.isEmpty {
-                return "Status: transkrypcja…"
-            }
-            return "Status: transkrypcja… (\(detail))"
-        case .succeeded:
-            return "Status: gotowe"
-        case let .failed(message):
-            return "Status: błąd — \(message)"
-        case .cancelled:
-            return "Status: gotowy (transkrypcja anulowana)"
-        case .skippedTooShort:
-            return "Status: gotowy (nagranie za krótkie)"
-        }
-    }
-
-    static func transcriptLine(for sessionDirectory: URL?, transcription: TranscriptionPhase) -> String {
-        guard let sessionDirectory else {
-            return "Transkrypt: brak ostatniej sesji"
-        }
-        let transcriptPath = sessionDirectory.appendingPathComponent("transcript.txt")
-        switch transcription {
-        case .running:
-            return "Transkrypt: w toku…"
-        case .succeeded:
-            return FileManager.default.fileExists(atPath: transcriptPath.path)
-                ? "Transkrypt: gotowy (transcript.txt)"
-                : "Transkrypt: brak pliku"
-        case .failed, .cancelled:
-            return FileManager.default.fileExists(atPath: transcriptPath.path)
-                ? "Transkrypt: gotowy (transcript.txt)"
-                : "Transkrypt: brak (nagranie zapisane)"
-        case .idle, .skippedTooShort:
-            return FileManager.default.fileExists(atPath: transcriptPath.path)
-                ? "Transkrypt: jest"
-                : "Transkrypt: brak"
-        }
-    }
-
     static func polishTranscriptionDetail(from statusMessage: String) -> String {
         if statusMessage.contains("pobieranie modelu") {
             return "pobieranie modelu…"

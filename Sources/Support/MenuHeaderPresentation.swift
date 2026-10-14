@@ -3,6 +3,8 @@ import Foundation
 enum ConfigurationRequirement: Equatable {
     case systemAudioPermission
     case whisperModel
+    /// Download or first load in progress; the menu shows live status instead of "Pobierz".
+    case whisperModelPreparing
 
     var menuTitle: String {
         switch self {
@@ -10,6 +12,8 @@ enum ConfigurationRequirement: Equatable {
             "Uprawnienia dźwięku systemu"
         case .whisperModel:
             "Pobierz model Whisper"
+        case .whisperModelPreparing:
+            "Przygotowywanie modelu…"
         }
     }
 }
@@ -53,7 +57,9 @@ enum MenuHeaderPresentation {
         if systemAudioStatus == .denied {
             missing.append(.systemAudioPermission)
         }
-        if !modelReady || modelBusy {
+        if modelBusy {
+            missing.append(.whisperModelPreparing)
+        } else if !modelReady {
             missing.append(.whisperModel)
         }
 

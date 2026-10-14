@@ -61,7 +61,7 @@ final class SystemAudioTap {
 
         var streamDescription = try tapID.readAudioTapStreamBasicDescription()
         guard let format = AVAudioFormat(streamDescription: &streamDescription) else {
-            try stop()
+            try? stop()
             throw CoreAudioError(message: "Failed to create AVAudioFormat from tap")
         }
         pcmFormat = format
@@ -91,47 +91,49 @@ final class SystemAudioTap {
             }
         }
         guard err == noErr, let procID = deviceProcID else {
-            try stop()
+            try? stop()
             throw CoreAudioError(message: "AudioDeviceCreateIOProcIDWithBlock failed: \(err)")
         }
 
         err = AudioDeviceStart(aggregateDeviceID, procID)
         guard err == noErr else {
-            try stop()
+            try? stop()
             throw CoreAudioError(message: "AudioDeviceStart failed: \(err)")
         }
     }
 
+    /// Tears down every resource even if an earlier step fails, so the next `start` is never a silent no-op.
     func stop() throws {
-        defer {
+        var firstError: CoreAudioError?
+        func check(_ status: OSStatus, _ call: String) {
+            if status != noErr, firstError == nil {
+                firstError = CoreAudioError(message: "\(call) failed: \(status)")
+            }
+        }
+
+        if aggregateDeviceID.isValid {
+            if let procID = deviceProcID {
+                check(AudioDeviceStop(aggregateDeviceID, procID), "AudioDeviceStop")
+                check(AudioDeviceDestroyIOProcID(aggregateDeviceID, procID), "AudioDeviceDestroyIOProcID")
+            }
+            check(AudioHardwareDestroyAggregateDevice(aggregateDeviceID), "AudioHardwareDestroyAggregateDevice")
+            aggregateDeviceID = .unknown
+        }
+        deviceProcID = nil
+
+        if processTapID.isValid {
+            check(AudioHardwareDestroyProcessTap(processTapID), "AudioHardwareDestroyProcessTap")
+            processTapID = .unknown
+        }
+
+        // IO blocks run on `queue`; closing the file there avoids racing an in-flight write.
+        queue.sync {
             audioFile = nil
             pcmFormat = nil
         }
 
-        if aggregateDeviceID.isValid, let procID = deviceProcID {
-            var err = AudioDeviceStop(aggregateDeviceID, procID)
-            if err != noErr {
-                throw CoreAudioError(message: "AudioDeviceStop failed: \(err)")
-            }
-            err = AudioDeviceDestroyIOProcID(aggregateDeviceID, procID)
-            if err != noErr {
-                throw CoreAudioError(message: "AudioDeviceDestroyIOProcID failed: \(err)")
-            }
-            deviceProcID = nil
-
-            err = AudioHardwareDestroyAggregateDevice(aggregateDeviceID)
-            if err != noErr {
-                throw CoreAudioError(message: "AudioHardwareDestroyAggregateDevice failed: \(err)")
-            }
-            aggregateDeviceID = .unknown
-        }
-
-        if processTapID.isValid {
-            let err = AudioHardwareDestroyProcessTap(processTapID)
-            if err != noErr {
-                throw CoreAudioError(message: "AudioHardwareDestroyProcessTap failed: \(err)")
-            }
-            processTapID = .unknown
+        if let firstError {
+            throw firstError
         }
     }
 

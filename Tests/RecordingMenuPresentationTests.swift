@@ -20,8 +20,7 @@ final class RecordingMenuPresentationTests: XCTestCase {
             recent: [entry],
             activeRecordingDirectory: nil,
             isRecording: false,
-            lastSessionPath: "/other",
-            transcription: .idle,
+            transcriptionStates: [:],
             modelReady: true
         )
         XCTAssertEqual(rows.first?.displayState, .transcriptReady)
@@ -42,8 +41,7 @@ final class RecordingMenuPresentationTests: XCTestCase {
             recent: [entry],
             activeRecordingDirectory: nil,
             isRecording: false,
-            lastSessionPath: url.path,
-            transcription: .running(detail: "test"),
+            transcriptionStates: [url.path: .running(detail: "test")],
             modelReady: true
         )
         XCTAssertEqual(rows.first?.displayState, .transcribing)
@@ -64,10 +62,52 @@ final class RecordingMenuPresentationTests: XCTestCase {
             recent: [entry],
             activeRecordingDirectory: nil,
             isRecording: false,
-            lastSessionPath: "/other",
-            transcription: .idle,
+            transcriptionStates: [:],
             modelReady: true
         )
         XCTAssertEqual(rows.first?.statusTone, .ready)
+    }
+
+    func testTranscriptionStateIsPerSession() {
+        let older = URL(fileURLWithPath: "/tmp/2025-10-14_13-00-00", isDirectory: true)
+        let newer = URL(fileURLWithPath: "/tmp/2025-10-14_14-00-00", isDirectory: true)
+        let entries = [older, newer].map { url in
+            RecordingSessionEntry(
+                id: url.path,
+                url: url,
+                folderName: url.lastPathComponent,
+                startedAt: nil,
+                hasTranscript: false
+            )
+        }
+        let rows = RecordingMenuPresentation.rows(
+            recent: entries,
+            activeRecordingDirectory: newer,
+            isRecording: true,
+            transcriptionStates: [older.path: .running(detail: "")],
+            modelReady: true
+        )
+        XCTAssertEqual(rows.map(\.displayState), [.recording, .transcribing])
+    }
+
+    func testQueuedSessionShowsQueueStatus() {
+        let url = URL(fileURLWithPath: "/tmp/2025-10-14_13-00-00", isDirectory: true)
+        let entry = RecordingSessionEntry(
+            id: url.path,
+            url: url,
+            folderName: url.lastPathComponent,
+            startedAt: nil,
+            hasTranscript: false
+        )
+        let rows = RecordingMenuPresentation.rows(
+            recent: [entry],
+            activeRecordingDirectory: nil,
+            isRecording: false,
+            transcriptionStates: [url.path: .queued],
+            modelReady: true
+        )
+        XCTAssertEqual(rows.first?.displayState, .queued)
+        XCTAssertEqual(rows.first?.trailingStatus, "W kolejce")
+        XCTAssertEqual(rows.first?.statusTone, .working)
     }
 }

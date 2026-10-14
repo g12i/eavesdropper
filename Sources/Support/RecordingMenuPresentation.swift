@@ -3,6 +3,7 @@ import Foundation
 enum RecordingSessionDisplayState: Equatable {
     case recording
     case audioOnly
+    case queued
     case transcribing
     case transcriptReady
     case error
@@ -23,6 +24,8 @@ struct RecordingMenuRow: Identifiable {
             nil
         case .audioOnly:
             "waveform"
+        case .queued:
+            "hourglass"
         case .transcribing:
             "arrow.triangle.2.circlepath"
         case .transcriptReady:
@@ -63,22 +66,13 @@ enum RecordingMenuPresentation {
         return menuCompactDateFormatter.string(from: date)
     }
 
-    static func polishTitle(for url: URL, startedAt: Date?) -> String {
-        if let startedAt {
-            return polishDateFormatter.string(from: startedAt)
-        }
-        if let parsed = folderNameDateFormatter.date(from: url.lastPathComponent) {
-            return polishDateFormatter.string(from: parsed)
-        }
-        return url.lastPathComponent
-    }
-
+    /// - Parameter transcriptionStates: phases from this app run, keyed by session folder path.
+    ///   Sessions without an entry fall back to what is on disk.
     static func rows(
         recent: [RecordingSessionEntry],
         activeRecordingDirectory: URL?,
         isRecording: Bool,
-        lastSessionPath: String,
-        transcription: TranscriptionPhase,
+        transcriptionStates: [String: TranscriptionPhase],
         modelReady: Bool
     ) -> [RecordingMenuRow] {
         var byPath: [String: RecordingSessionEntry] = [:]
@@ -108,8 +102,7 @@ enum RecordingMenuPresentation {
                 for: entry,
                 activeRecordingDirectory: activeRecordingDirectory,
                 isRecording: isRecording,
-                lastSessionPath: lastSessionPath,
-                transcription: transcription,
+                transcription: transcriptionStates[entry.url.path],
                 modelReady: modelReady
             )
             return RecordingMenuRow(
@@ -126,8 +119,7 @@ enum RecordingMenuPresentation {
         for entry: RecordingSessionEntry,
         activeRecordingDirectory: URL?,
         isRecording: Bool,
-        lastSessionPath: String,
-        transcription: TranscriptionPhase,
+        transcription: TranscriptionPhase?,
         modelReady: Bool
     ) -> RecordingSessionDisplayState {
         let isActiveRecording = isRecording && activeRecordingDirectory?.path == entry.url.path
@@ -135,23 +127,21 @@ enum RecordingMenuPresentation {
             return .recording
         }
 
-        let isLast = entry.url.path == lastSessionPath
-        if isLast {
-            switch transcription {
-            case .running:
-                return .transcribing
-            case let .failed(message):
-                if !modelReady || message.localizedCaseInsensitiveContains("model") {
-                    return .modelMissing
-                }
-                return .error
-            case .succeeded:
-                return entry.hasTranscript ? .transcriptReady : .error
-            case .skippedTooShort:
-                return .tooShort
-            case .cancelled, .idle:
-                break
-            }
+        switch transcription {
+        case .queued:
+            return .queued
+        case .running:
+            return .transcribing
+        case .modelMissing:
+            return .modelMissing
+        case .failed:
+            return modelReady ? .error : .modelMissing
+        case .succeeded:
+            return entry.hasTranscript ? .transcriptReady : .error
+        case .skippedTooShort:
+            return .tooShort
+        case .cancelled, .idle, nil:
+            break
         }
 
         if entry.hasTranscript {
@@ -169,6 +159,8 @@ enum RecordingMenuPresentation {
             "Nagrywanie…"
         case .audioOnly:
             "Brak transkryptu"
+        case .queued:
+            "W kolejce"
         case .transcribing:
             "Transkrypcja…"
         case .transcriptReady:
@@ -189,15 +181,7 @@ enum RecordingMenuPresentation {
         return folderNameDateFormatter.date(from: entry.folderName)?.timeIntervalSince1970 ?? 0
     }
 
-    private static let polishDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "pl_PL")
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
-
-    private     static let menuCompactDateFormatter: DateFormatter = {
+    private static let menuCompactDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "pl_PL")
         f.dateFormat = "d.MM 'o' HH:mm"
@@ -210,10 +194,4 @@ enum RecordingMenuPresentation {
         f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         return f
     }()
-}
-
-extension RecordingSessionEntry {
-    var readablePolishDateTime: String {
-        RecordingMenuPresentation.polishTitle(for: url, startedAt: startedAt)
-    }
 }

@@ -2,9 +2,10 @@ import AppKit
 
 final class TapScribeAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        TapScribeApplicationController.shared.start()
-        Task { @MainActor in
-            await TapScribeApplicationController.shared.applicationDidFinishLaunching()
+        // Unit tests use the app as host; skip the status item, onboarding window and timers.
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        MainActor.assumeIsolated {
+            TapScribeApplicationController.shared.applicationDidFinishLaunching()
         }
     }
 

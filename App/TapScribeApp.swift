@@ -4,22 +4,15 @@ import SwiftUI
 @main
 enum TapScribeMain {
     static func main() {
-        if CommandLine.arguments.contains("--probe-capture") {
+        let args = CommandLine.arguments
+        if args.contains("--probe-capture") || args.contains("--headless") || args.contains("--transcribe") {
             bootstrapAppRuntime()
-            CaptureDiagnostics.printReport()
-            exit(0)
-        }
-
-        if CommandLine.arguments.contains("--headless") || CommandLine.arguments.contains("--transcribe") {
-            bootstrapAppRuntime()
-            let group = DispatchGroup()
-            group.enter()
             Task {
                 _ = await HeadlessRunner.runIfNeeded()
-                group.leave()
+                exit(2)
             }
-            group.wait()
-            exit(2)
+            // Keep the main queue serviced: capture setup hops to the main actor for TCC activation.
+            dispatchMain()
         }
 
         runMenuBarApplication()
@@ -30,10 +23,13 @@ enum TapScribeMain {
         app.setActivationPolicy(.accessory)
     }
 
+    /// `NSApplication.delegate` is weak; this keeps the delegate alive for the app's lifetime.
+    private static let appDelegate = TapScribeAppDelegate()
+
     private static func runMenuBarApplication() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
-        app.delegate = TapScribeAppDelegate()
+        app.delegate = appDelegate
         app.run()
     }
 }

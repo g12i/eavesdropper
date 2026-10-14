@@ -4,7 +4,7 @@ import OSLog
 enum CaptureDiagnostics {
     private static let logger = Logger(subsystem: "com.tapscribe.app", category: "CaptureDiagnostics")
 
-    static func printReport() {
+    static func printReport() async {
         let bundleID = Bundle.main.bundleIdentifier ?? "(unknown)"
         let appPath = Bundle.main.bundleURL.path
         let signing = signingSummary(for: appPath)
@@ -19,7 +19,7 @@ enum CaptureDiagnostics {
         print("  system_audio_tcc: \(systemStatus.rawValue)")
 
         do {
-            try SystemAudioCapturePermission.ensureAuthorized()
+            try await SystemAudioCapturePermission.ensureAuthorized()
             print("  system_audio_request: ok")
         } catch {
             print("  system_audio_request: FAIL — \(error.localizedDescription)")
@@ -30,7 +30,7 @@ enum CaptureDiagnostics {
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let session = RecordingSession()
-            try session.start(in: tempDir)
+            try await session.start(in: tempDir)
             try session.stop()
             let systemPath = tempDir.appendingPathComponent("system.caf")
             let attrs = try? FileManager.default.attributesOfItem(atPath: systemPath.path)

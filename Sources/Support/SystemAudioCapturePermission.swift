@@ -25,9 +25,8 @@ enum SystemAudioCapturePermission {
         }
     }
 
-    static func ensureAuthorized() throws {
-        activateAppIfNeeded()
-
+    /// Prompts only when status is unknown; never blocks the main thread while the TCC dialog is up.
+    static func ensureAuthorized() async throws {
         let status = currentStatus()
         logger.info("System audio capture TCC status: \(status.rawValue, privacy: .public)")
 
@@ -45,26 +44,16 @@ enum SystemAudioCapturePermission {
             return
         }
 
-        let sem = DispatchSemaphore(value: 0)
-        var granted = false
-        request("kTCCServiceAudioCapture" as CFString, nil) { ok in
-            granted = ok
-            sem.signal()
-        }
-        sem.wait()
+        // The consent dialog can end up behind other windows for an accessory app that is not active.
+        await MainActor.run { NSApplication.shared.activate(ignoringOtherApps: true) }
 
-        if granted {
-            return
+        let granted = await withCheckedContinuation { continuation in
+            request("kTCCServiceAudioCapture" as CFString, nil) { ok in
+                continuation.resume(returning: ok)
+            }
         }
-        throw SystemAudioCaptureError.denied
-    }
-
-    private static func activateAppIfNeeded() {
-        let activate = { NSApplication.shared.activate(ignoringOtherApps: true) }
-        if Thread.isMainThread {
-            activate()
-        } else {
-            DispatchQueue.main.sync(execute: activate)
+        if !granted {
+            throw SystemAudioCaptureError.denied
         }
     }
 
