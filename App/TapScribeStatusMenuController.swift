@@ -56,6 +56,13 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
 
+        let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
+        let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleRecording(_:)), keyEquivalent: "")
+        toggle.target = self
+        menu.addItem(toggle)
+
+        menu.addItem(.separator())
+
         let rows = app.recordingMenuRows
         if rows.isEmpty {
             let empty = NSMenuItem(title: "Brak nagrań", action: nil, keyEquivalent: "")
@@ -73,19 +80,6 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-
-        let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
-        let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleRecording(_:)), keyEquivalent: "")
-        toggle.target = self
-        menu.addItem(toggle)
-
-        let finder = NSMenuItem(
-            title: "Pokaż w Finderze",
-            action: #selector(showInFinder(_:)),
-            keyEquivalent: ""
-        )
-        finder.target = self
-        menu.addItem(finder)
 
         let settings = NSMenuItem(title: "Ustawienia", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu()
@@ -134,10 +128,6 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         let app = TapScribeApplicationController.shared
         guard let row = app.recordingMenuRows.first(where: { $0.id == sessionID }) else { return }
         app.openRecording(row)
-    }
-
-    @objc private func showInFinder(_ sender: NSMenuItem) {
-        TapScribeApplicationController.shared.showInFinder()
     }
 
     @objc private func openModelSettings(_ sender: NSMenuItem) {

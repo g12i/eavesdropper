@@ -29,7 +29,7 @@ extension RecordingSessionDisplayState {
             .error
         case .transcriptReady:
             .ready
-        case .audioOnly:
+        case .audioOnly, .tooShort:
             .noTranscript
         }
     }

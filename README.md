@@ -26,7 +26,7 @@ Każda sesja to folder:
 
 Pliki: **`system.caf`**, po transkrypcji **`transcript.txt`** i **`transcript.srt`**.
 
-W menu paska systemowego (natywne **NSMenu**, jak Rectangle/Cursor): lista ostatnich nagrań z ikoną i kolorem statusu, **Pokaż w Finderze** (ostatnia sesja lub `~/Recordings`).
+W menu paska systemowego (natywne **NSMenu**, jak Rectangle/Cursor): **Start nagrywania**, lista ostatnich sesji (klik → folder w Finderze), Ustawienia. Nagrania krótsze niż 60 s nie są transkrybowane (status „Za krótkie”).
 
 ## Dźwięk wyjściowy (nie BlackHole)
 

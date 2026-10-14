@@ -7,6 +7,7 @@ enum RecordingSessionDisplayState: Equatable {
     case transcriptReady
     case error
     case modelMissing
+    case tooShort
 }
 
 struct RecordingMenuRow: Identifiable {
@@ -30,6 +31,8 @@ struct RecordingMenuRow: Identifiable {
             "xmark.circle"
         case .modelMissing:
             "exclamationmark.triangle"
+        case .tooShort:
+            "clock"
         }
     }
 
@@ -49,7 +52,18 @@ enum RecordingMenuPresentation {
     }
 
     static func polishTitle(for entry: RecordingSessionEntry) -> String {
-        entry.readablePolishDateTime
+        menuCompactTitle(for: entry.url, startedAt: entry.startedAt)
+    }
+
+    /// Shorter label so trailing status fits in the menu row.
+    static func menuCompactTitle(for url: URL, startedAt: Date?) -> String {
+        let date = startedAt
+            ?? folderNameDateFormatter.date(from: url.lastPathComponent)
+            ?? Date.distantPast
+        if date == Date.distantPast {
+            return url.lastPathComponent
+        }
+        return menuCompactDateFormatter.string(from: date)
     }
 
     static func polishTitle(for url: URL, startedAt: Date?) -> String {
@@ -136,6 +150,8 @@ enum RecordingMenuPresentation {
                 return .error
             case .succeeded:
                 return entry.hasTranscript ? .transcriptReady : .error
+            case .skippedTooShort:
+                return .tooShort
             case .cancelled, .idle:
                 break
             }
@@ -143,6 +159,9 @@ enum RecordingMenuPresentation {
 
         if entry.hasTranscript {
             return .transcriptReady
+        }
+        if SessionRecordingDuration.isTooShortForTranscription(in: entry.url) {
+            return .tooShort
         }
         return .audioOnly
     }
@@ -161,6 +180,8 @@ enum RecordingMenuPresentation {
             "Błąd"
         case .modelMissing:
             "Brak modelu"
+        case .tooShort:
+            "Za krótkie"
         }
     }
 
@@ -176,6 +197,13 @@ enum RecordingMenuPresentation {
         f.locale = Locale(identifier: "pl_PL")
         f.dateStyle = .medium
         f.timeStyle = .short
+        return f
+    }()
+
+    private static let menuCompactDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "pl_PL")
+        f.setLocalizedDateFormatFromTemplate("dMMMHHmm")
         return f
     }()
 

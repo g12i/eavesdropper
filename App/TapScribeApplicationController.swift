@@ -151,8 +151,13 @@ final class TapScribeApplicationController: ObservableObject {
                 isRecording = false
                 if let dir {
                     lastSessionPath = dir.path
+                    refreshRecordingsList()
+                    if SessionRecordingDuration.isTooShortForTranscription(in: dir) {
+                        transcriptionPhase = .skippedTooShort
+                        notifyMenuRebuild()
+                        return
+                    }
                 }
-                refreshRecordingsList()
                 transcriptionPhase = .idle
                 notifyMenuRebuild()
                 startTranscription(for: dir)
@@ -189,13 +194,9 @@ final class TapScribeApplicationController: ObservableObject {
 
     func openRecording(_ row: RecordingMenuRow) {
         lastSessionPath = row.url.path
-        RecordingsLocation.openInFinder(sessionDirectory: row.url)
+        RecordingsLocation.revealSessionFolder(row.url)
         refreshRecordingsList()
         notifyMenuRebuild()
-    }
-
-    func showInFinder() {
-        RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
     }
 
     func quit() {
@@ -206,6 +207,13 @@ final class TapScribeApplicationController: ObservableObject {
 
     private func startTranscription(for directory: URL?) {
         guard let directory else { return }
+
+        if SessionRecordingDuration.isTooShortForTranscription(in: directory) {
+            transcriptionPhase = .skippedTooShort
+            refreshRecordingsList()
+            notifyMenuRebuild()
+            return
+        }
 
         transcriptionTask = Task {
             await whisperModelStore.refreshReadyState()

@@ -6,6 +6,7 @@ enum TranscriptionPhase: Equatable {
     case succeeded
     case failed(message: String)
     case cancelled
+    case skippedTooShort
 }
 
 enum AppStatusText {
@@ -20,7 +21,7 @@ enum AppStatusText {
             activity = "Nagrywanie"
         } else {
             switch transcription {
-            case .idle, .cancelled, .succeeded:
+            case .idle, .cancelled, .succeeded, .skippedTooShort:
                 activity = "Gotowy"
             case .running:
                 activity = "Transkrypcja"
@@ -59,6 +60,8 @@ enum AppStatusText {
             return "Status: błąd — \(message)"
         case .cancelled:
             return "Status: gotowy (transkrypcja anulowana)"
+        case .skippedTooShort:
+            return "Status: gotowy (nagranie za krótkie)"
         }
     }
 
@@ -78,7 +81,7 @@ enum AppStatusText {
             return FileManager.default.fileExists(atPath: transcriptPath.path)
                 ? "Transkrypt: gotowy (transcript.txt)"
                 : "Transkrypt: brak (nagranie zapisane)"
-        case .idle:
+        case .idle, .skippedTooShort:
             return FileManager.default.fileExists(atPath: transcriptPath.path)
                 ? "Transkrypt: jest"
                 : "Transkrypt: brak"
