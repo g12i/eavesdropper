@@ -35,8 +35,21 @@ struct TapScribeApp: App {
     @State private var isRecording = false
     @State private var session = RecordingSession()
     @AppStorage("recordMicrophone") private var recordMicrophone = false
+    @AppStorage("lastSessionPath") private var lastSessionPath = ""
     @State private var status = "Gotowy"
     @State private var transcriptionTask: Task<Void, Never>?
+
+    private var lastSessionURL: URL? {
+        guard !lastSessionPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: lastSessionPath, isDirectory: true)
+    }
+
+    private var recordingsPathHint: String {
+        if let lastSessionURL {
+            return "Ostatnie: \(RecordingsLocation.displayPath(for: lastSessionURL))"
+        }
+        return "Nagrania: ~/Recordings/<YYYY-MM-DD_HH-mm-ss>/"
+    }
 
     private var bundleLabel: String {
         Bundle.main.bundleIdentifier ?? "?"
@@ -54,6 +67,13 @@ struct TapScribeApp: App {
             Toggle("Nagrywaj mikrofon (Twój głos)", isOn: $recordMicrophone)
                 .disabled(isRecording)
             Divider()
+            Button("Pokaż w Finderze") {
+                RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
+            }
+            Button("Otwórz folder nagrań…") {
+                RecordingsLocation.openRecordingsRootInFinder()
+            }
+            Divider()
             Button("Ustawienia: dźwięk systemu…") {
                 PrivacySettings.openSystemAudioRecording()
             }
@@ -63,6 +83,10 @@ struct TapScribeApp: App {
             Divider()
             Text(status)
                 .font(.caption)
+            Text(recordingsPathHint)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Text("Bundle: \(bundleLabel)")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -81,6 +105,9 @@ struct TapScribeApp: App {
             do {
                 try session.stop()
                 isRecording = false
+                if let dir {
+                    lastSessionPath = dir.path
+                }
                 status = "Nagranie zapisane (dźwięk systemu\(recordMicrophone ? " + mikrofon" : ""))."
                 startTranscription(for: dir)
             } catch {

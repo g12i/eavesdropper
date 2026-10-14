@@ -22,6 +22,16 @@ This tree on the M1 Pro uses **local-only git** (no remote). Do **not** run `git
 
 Details: [docs/workflow-m1.md](docs/workflow-m1.md).
 
+## Where recordings are saved
+
+Each session is a folder:
+
+`~/Recordings/<YYYY-MM-DD_HH-mm-ss>/`
+
+Typical files: `system.caf` (always when capture succeeds), optional `mic.caf`, later `transcript.txt` and `transcript.srt`.
+
+In the menu bar app use **Pokaż w Finderze** (last session) or **Otwórz folder nagrań…** (`~/Recordings`).
+
 ## Sound output (not BlackHole)
 
 TapScribe does **not** install a virtual output device and does **not** appear in **System Settings → Sound → Output**. It uses a **private aggregate device** only while recording; playback stays on your normal output (built‑in speakers, headphones, etc.). This is intentional — no BlackHole and no Multi‑Output Device.
