@@ -40,7 +40,7 @@ Przy **Start nagrywania** (bez modelu Whisper):
 
 1. Zgoda na **nagrywanie dźwięku systemu** → `system.caf`.
 
-Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja prosi o jednorazowe pobranie modelu Whisper (~1,5 GB). Nagrywanie działa od razu; bez modelu transkrypcja nie startuje (komunikat w menu).
+Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja proponuje jednorazowe pobranie modelu Whisper (~1,5 GB). Nagrywanie działa od razu, także bez modelu — **Start nagrywania** jest wyłączony tylko przy braku zgody na dźwięk systemu. Bez modelu menu pokazuje „Wymaga konfiguracji → Pobierz model Whisper”, a nagrania po Stop mają status „Brak modelu” (bez transkryptu).
 
 Menu **Ustawienia → Model transkrypcji…** / **Pobierz ponownie model…**
 

@@ -16,6 +16,16 @@ enum ConfigurationRequirement: Equatable {
             "Przygotowywanie modelu…"
         }
     }
+
+    /// Only capture blockers disable Start; Whisper is needed for transcription, not for recording.
+    var blocksRecording: Bool {
+        switch self {
+        case .systemAudioPermission:
+            true
+        case .whisperModel, .whisperModelPreparing:
+            false
+        }
+    }
 }
 
 struct MenuHeaderModel: Equatable {
@@ -24,9 +34,14 @@ struct MenuHeaderModel: Equatable {
     let missingRequirements: [ConfigurationRequirement]
     let isRecording: Bool
 
-    /// True when the menu shows **Wymaga konfiguracji** (Start nagrywania must stay disabled).
+    /// True when the menu shows **Wymaga konfiguracji** (including optional model setup).
     var needsSetup: Bool {
         !missingRequirements.isEmpty
+    }
+
+    /// True when Start nagrywania must stay disabled (e.g. system audio permission denied).
+    var blocksRecording: Bool {
+        missingRequirements.contains(where: \.blocksRecording)
     }
 
     /// Header row is hidden when configured and idle; shown for setup or elapsed time while recording.

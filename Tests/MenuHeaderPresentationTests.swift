@@ -54,6 +54,42 @@ final class MenuHeaderPresentationTests: XCTestCase {
         XCTAssertTrue(model.needsSetup)
     }
 
+    func testMissingModelDoesNotBlockRecording() {
+        let model = MenuHeaderPresentation.model(
+            isRecording: false,
+            recordingElapsedMMSS: nil,
+            systemAudioStatus: .authorized,
+            modelReady: false,
+            modelBusy: false
+        )
+        XCTAssertEqual(model.missingRequirements, [.whisperModel])
+        XCTAssertTrue(model.needsSetup)
+        XCTAssertFalse(model.blocksRecording)
+    }
+
+    func testDownloadInProgressDoesNotBlockRecording() {
+        let model = MenuHeaderPresentation.model(
+            isRecording: false,
+            recordingElapsedMMSS: nil,
+            systemAudioStatus: .unknown,
+            modelReady: false,
+            modelBusy: true
+        )
+        XCTAssertFalse(model.blocksRecording)
+    }
+
+    func testDeniedPermissionBlocksRecording() {
+        let model = MenuHeaderPresentation.model(
+            isRecording: false,
+            recordingElapsedMMSS: nil,
+            systemAudioStatus: .denied,
+            modelReady: true,
+            modelBusy: false
+        )
+        XCTAssertEqual(model.missingRequirements, [.systemAudioPermission])
+        XCTAssertTrue(model.blocksRecording)
+    }
+
     func testNeedsSetupFalseWhenGotowe() {
         let model = MenuHeaderPresentation.model(
             isRecording: false,

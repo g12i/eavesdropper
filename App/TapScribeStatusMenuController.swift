@@ -153,7 +153,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     private func configureToggle(_ item: NSMenuItem, header: MenuHeaderModel) {
         let app = TapScribeApplicationController.shared
         item.title = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
-        item.isEnabled = !app.isTogglingRecording && (app.isRecording || !header.needsSetup)
+        item.isEnabled = !app.isTogglingRecording && (app.isRecording || !header.blocksRecording)
     }
 
     private func configureRow(_ item: NSMenuItem, row: RecordingMenuRow) {
