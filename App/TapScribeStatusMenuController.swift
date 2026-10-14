@@ -104,19 +104,23 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(quit)
     }
 
-    func menuWillOpen(_ menu: NSMenu) {
-        menuIsOpen = true
-        let app = TapScribeApplicationController.shared
-        app.refreshRecordingsList()
-        rebuildMenu()
-        Task { @MainActor in
-            await app.whisperModelStore.refreshReadyState()
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            menuIsOpen = true
+            let app = TapScribeApplicationController.shared
+            app.refreshRecordingsList()
             rebuildMenu()
+            Task { @MainActor in
+                await app.whisperModelStore.refreshReadyState()
+                rebuildMenu()
+            }
         }
     }
 
-    func menuDidClose(_ menu: NSMenu) {
-        menuIsOpen = false
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            menuIsOpen = false
+        }
     }
 
     @objc private func toggleRecording(_ sender: NSMenuItem) {
