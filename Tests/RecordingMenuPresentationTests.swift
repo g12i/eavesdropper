@@ -3,8 +3,30 @@ import XCTest
 
 final class RecordingMenuPresentationTests: XCTestCase {
     func testInlineMenuLineFormat() {
-        let line = RecordingMenuPresentation.inlineMenuLine(title: "14.10 o 14:27", status: "Gotowe")
-        XCTAssertEqual(line, "14.10 o 14:27 · Gotowe")
+        let line = RecordingMenuPresentation.inlineMenuLine(title: "14.10 o 14:27", status: "Transkrypcja…")
+        XCTAssertEqual(line, "14.10 o 14:27 · Transkrypcja…")
+    }
+
+    func testTranscriptReadyOmitsStatusText() {
+        let url = URL(fileURLWithPath: "/tmp/session", isDirectory: true)
+        let entry = RecordingSessionEntry(
+            id: url.path,
+            url: url,
+            folderName: "session",
+            startedAt: Date(),
+            hasTranscript: true
+        )
+        let rows = RecordingMenuPresentation.rows(
+            recent: [entry],
+            activeRecordingDirectory: nil,
+            isRecording: false,
+            lastSessionPath: "/other",
+            transcription: .idle,
+            modelReady: true
+        )
+        XCTAssertEqual(rows.first?.displayState, .transcriptReady)
+        XCTAssertEqual(rows.first?.trailingStatus, "")
+        XCTAssertFalse(rows.first?.menuLineTitle.contains("·") ?? true)
     }
 
     func testTranscribingStateForLastSession() {

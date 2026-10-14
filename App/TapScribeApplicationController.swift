@@ -64,6 +64,10 @@ final class TapScribeApplicationController: ObservableObject {
     }
 
     func start() {
+        whisperModelStore.onReadyStateChanged = { [weak self] in
+            self?.notifyMenuRebuild()
+        }
+
         NotificationCenter.default.addObserver(
             forName: .tapScribeMenuRebuild,
             object: nil,
@@ -121,10 +125,13 @@ final class TapScribeApplicationController: ObservableObject {
     func dismissOnboarding() {
         OnboardingWindowPresenter.dismiss()
         NSApplication.shared.setActivationPolicy(.accessory)
-        if whisperModelStore.isReady {
-            UserDefaults.standard.set(true, forKey: Self.onboardingKey)
+        Task { @MainActor in
+            await whisperModelStore.refreshReadyState()
+            if whisperModelStore.isReady {
+                UserDefaults.standard.set(true, forKey: Self.onboardingKey)
+            }
+            notifyMenuRebuild()
         }
-        notifyMenuRebuild()
     }
 
     func prepareRedownloadOnboarding() async {

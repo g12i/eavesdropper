@@ -79,10 +79,12 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         let app = TapScribeApplicationController.shared
         menu.removeAllItems()
 
-        addMenuHeader(for: app)
-        menu.addItem(.separator())
-
         let headerModel = app.menuHeader
+        if headerModel.shouldShowInMenu {
+            addMenuHeader(model: headerModel)
+            menu.addItem(.separator())
+        }
+
         let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
         let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleRecording(_:)), keyEquivalent: "")
         toggle.target = self
@@ -158,8 +160,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func addMenuHeader(for app: TapScribeApplicationController) {
-        let model = app.menuHeader
+    private func addMenuHeader(model: MenuHeaderModel) {
         let header = NSMenuItem()
         header.attributedTitle = NSAttributedString(
             string: model.title,
@@ -169,7 +170,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
             ]
         )
 
-        if model.missingRequirements.isEmpty {
+        if model.isRecording {
             header.isEnabled = false
             menu.addItem(header)
             return

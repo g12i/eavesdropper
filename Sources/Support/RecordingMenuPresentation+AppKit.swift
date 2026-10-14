@@ -8,6 +8,8 @@ extension RecordingMenuPresentation {
             string: line,
             attributes: [.font: font, .foregroundColor: NSColor.labelColor]
         )
+        guard !row.trailingStatus.isEmpty else { return result }
+
         let marker = " · \(row.trailingStatus)"
         if let swiftRange = line.range(of: marker, options: .backwards) {
             let nsRange = NSRange(swiftRange, in: line)

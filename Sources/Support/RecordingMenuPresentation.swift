@@ -44,6 +44,7 @@ struct RecordingMenuRow: Identifiable {
 enum RecordingMenuPresentation {
     static func inlineMenuLine(title: String, status: String) -> String {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard !status.isEmpty else { return trimmed }
         return "\(trimmed) · \(status)"
     }
 
@@ -171,7 +172,7 @@ enum RecordingMenuPresentation {
         case .transcribing:
             "Transkrypcja…"
         case .transcriptReady:
-            "Gotowe"
+            ""
         case .error:
             "Błąd"
         case .modelMissing:

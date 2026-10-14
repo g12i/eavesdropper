@@ -18,10 +18,16 @@ struct MenuHeaderModel: Equatable {
     let title: String
     let tone: RecordingStatusTone
     let missingRequirements: [ConfigurationRequirement]
+    let isRecording: Bool
 
     /// True when the menu shows **Wymaga konfiguracji** (Start nagrywania must stay disabled).
     var needsSetup: Bool {
         !missingRequirements.isEmpty
+    }
+
+    /// Header row is hidden when configured and idle; shown for setup or elapsed time while recording.
+    var shouldShowInMenu: Bool {
+        isRecording || needsSetup
     }
 }
 
@@ -35,7 +41,12 @@ enum MenuHeaderPresentation {
     ) -> MenuHeaderModel {
         if isRecording {
             let elapsed = recordingElapsedMMSS ?? "00:00"
-            return MenuHeaderModel(title: elapsed, tone: .working, missingRequirements: [])
+            return MenuHeaderModel(
+                title: elapsed,
+                tone: .working,
+                missingRequirements: [],
+                isRecording: true
+            )
         }
 
         var missing: [ConfigurationRequirement] = []
@@ -47,12 +58,13 @@ enum MenuHeaderPresentation {
         }
 
         if missing.isEmpty {
-            return MenuHeaderModel(title: "Gotowe", tone: .ready, missingRequirements: [])
+            return MenuHeaderModel(title: "", tone: .ready, missingRequirements: [], isRecording: false)
         }
         return MenuHeaderModel(
             title: "Wymaga konfiguracji",
             tone: .configuration,
-            missingRequirements: missing
+            missingRequirements: missing,
+            isRecording: false
         )
     }
 }

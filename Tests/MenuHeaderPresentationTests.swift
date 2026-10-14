@@ -10,9 +10,8 @@ final class MenuHeaderPresentationTests: XCTestCase {
             modelReady: true,
             modelBusy: false
         )
-        XCTAssertEqual(model.title, "Gotowe")
-        XCTAssertEqual(model.tone, .ready)
         XCTAssertTrue(model.missingRequirements.isEmpty)
+        XCTAssertFalse(model.shouldShowInMenu)
     }
 
     func testElapsedWhileRecording() {
@@ -26,6 +25,7 @@ final class MenuHeaderPresentationTests: XCTestCase {
         XCTAssertEqual(model.title, "01:05")
         XCTAssertEqual(model.tone, .working)
         XCTAssertTrue(model.missingRequirements.isEmpty)
+        XCTAssertTrue(model.shouldShowInMenu)
     }
 
     func testConfigurationMissingModelAndPermission() {

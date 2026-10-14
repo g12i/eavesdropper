@@ -79,7 +79,11 @@ enum WhisperModelReadiness {
             guard name.hasPrefix("MelSpectrogram"), name.hasSuffix(".mlmodelc") || name.hasSuffix(".mlpackage") else {
                 continue
             }
-            matches.append(url.deletingLastPathComponent())
+            let folder = url.deletingLastPathComponent()
+            if folder.path.contains("/.cache/") {
+                continue
+            }
+            matches.append(folder)
         }
 
         if matches.isEmpty {

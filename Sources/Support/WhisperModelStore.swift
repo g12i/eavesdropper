@@ -11,6 +11,7 @@ final class WhisperModelStore: ObservableObject {
     @Published var downloadFraction: Double?
 
     private var downloadTask: Task<Void, Never>?
+    var onReadyStateChanged: (() -> Void)?
 
     func refreshReadyState() async {
         isReady = await WhisperModelReadiness.isModelPresentOnDisk()
@@ -63,11 +64,15 @@ final class WhisperModelStore: ObservableObject {
                     }
                 )
 
-                isReady = true
+                await refreshReadyState()
+                if !isReady {
+                    isReady = true
+                }
                 downloadFraction = 1
                 statusLine = "Model gotowy. Możesz nagrywać i transkrybować."
                 detailLine = ""
                 UserDefaults.standard.set(true, forKey: Self.onboardingCompletedKey)
+                onReadyStateChanged?()
             } catch is CancellationError {
                 statusLine = "Pobieranie anulowane."
                 await refreshReadyState()
@@ -78,6 +83,7 @@ final class WhisperModelStore: ObservableObject {
             }
 
             isBusy = false
+            onReadyStateChanged?()
         }
     }
 
