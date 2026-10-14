@@ -44,7 +44,7 @@ Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja propo
 
 Menu **Wymaga konfiguracji** pokazuje tylko to, czego brakuje: **Zezwól na nagrywanie dźwięku systemu…** (otwiera Ustawienia systemowe) i/lub **Pobierz model transkrypcji (opcjonalnie)…** (w trakcie pobierania: postęp).
 
-Menu **Ustawienia** (rzadko potrzebne): **Dźwięk systemu w Ustawieniach…** oraz — gdy model jest gotowy — **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model).
+Gdy wszystko działa, menu nie pokazuje żadnych przycisków konfiguracji ani naprawy: tylko Start, lista nagrań, **Ustawienia → Otwórz folder nagrań** i Zakończ. Awaryjne **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model) jest schowane w **Ustawienia → Zaawansowane**.
 
 Wielokropek „…” jest tylko przy poleceniach, które otwierają okno lub Ustawienia systemowe (zgodnie z macOS HIG); w statusach („Transkrypcja…”) oznacza trwającą czynność.
 

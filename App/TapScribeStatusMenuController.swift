@@ -125,15 +125,21 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        // Secondary actions only; anything still missing lives under "Wymaga konfiguracji".
+        // No setup/repair actions here: anything missing lives under "Wymaga konfiguracji".
         let settings = NSMenuItem(title: "Ustawienia", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu()
         settingsMenu.autoenablesItems = false
-        addItem(to: settingsMenu, title: "Dźwięk systemu w Ustawieniach…", action: #selector(openSystemAudioSettings(_:)))
+        addItem(to: settingsMenu, title: "Otwórz folder nagrań", action: #selector(openRecordingsFolder(_:)))
         let store = app.whisperModelStore
         if store.isReady, !store.isBusy {
-            let redownload = addItem(to: settingsMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
+            let advanced = NSMenuItem(title: "Zaawansowane", action: nil, keyEquivalent: "")
+            let advancedMenu = NSMenu()
+            advancedMenu.autoenablesItems = false
+            let redownload = addItem(to: advancedMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
             redownload.isEnabled = !app.isTranscribing
+            advanced.submenu = advancedMenu
+            settingsMenu.addItem(.separator())
+            settingsMenu.addItem(advanced)
         }
         settings.submenu = settingsMenu
         menu.addItem(settings)
@@ -273,6 +279,10 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func redownloadModel(_ sender: NSMenuItem) {
         TapScribeApplicationController.shared.prepareRedownloadOnboarding()
+    }
+
+    @objc private func openRecordingsFolder(_ sender: NSMenuItem) {
+        RecordingsLocation.openRootInFinder()
     }
 
     @objc private func openSystemAudioSettings(_ sender: NSMenuItem) {

@@ -16,10 +16,14 @@ enum RecordingsLocation {
         try FileManager.default.createDirectory(at: rootDirectory, withIntermediateDirectories: true)
     }
 
+    static func openRootInFinder() {
+        try? ensureRootExists()
+        NSWorkspace.shared.open(rootDirectory)
+    }
+
     static func revealSessionFolder(_ sessionDirectory: URL) {
         guard FileManager.default.fileExists(atPath: sessionDirectory.path) else {
-            try? ensureRootExists()
-            NSWorkspace.shared.open(rootDirectory)
+            openRootInFinder()
             return
         }
         NSWorkspace.shared.activateFileViewerSelecting([sessionDirectory])
