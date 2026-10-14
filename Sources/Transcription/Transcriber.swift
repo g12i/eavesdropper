@@ -11,7 +11,7 @@ enum Transcriber {
         try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
         let modelVariant = await preferredModelVariant()
-        var config = WhisperKitConfig(
+        let config = WhisperKitConfig(
             model: modelVariant,
             downloadBase: modelsDirectory,
             modelFolder: nil,
@@ -22,9 +22,12 @@ enum Transcriber {
             download: true,
             useBackgroundDownloadSession: false
         )
-        config.modelStateCallback = onModelState
 
-        return try await WhisperKit(config)
+        let whisperKit = try await WhisperKit(config)
+        if let onModelState {
+            whisperKit.modelStateCallback = onModelState
+        }
+        return whisperKit
     }
 
     static func transcribe(path: URL, speaker: TranscriptSpeaker) async throws -> [TranscriptSegment] {

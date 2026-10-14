@@ -16,17 +16,8 @@ enum TranscriptionService {
 
         onStatus?("Transkrypcja: pobieranie modelu…")
 
-        let whisperKit = try await Transcriber.makeWhisperKit { state in
-            switch state {
-            case .downloading:
-                onStatus?("Transkrypcja: pobieranie modelu…")
-            case .loading, .prewarming:
-                onStatus?("Transkrypcja: ładowanie modelu…")
-            case .loaded:
-                onStatus?("Transkrypcja: rozpoznawanie mowy…")
-            default:
-                break
-            }
+        let whisperKit = try await Transcriber.makeWhisperKit { _, newState in
+            onStatus?(polishStatus(for: newState))
         }
 
         var mic: [TranscriptSegment] = []
@@ -56,5 +47,18 @@ enum TranscriptionService {
         let merged = TranscriptMerger.merge(micSegments: mic, systemSegments: system)
         try TranscriptMerger.writeTXT(merged, to: directory.appendingPathComponent("transcript.txt"))
         try TranscriptMerger.writeSRT(merged, to: directory.appendingPathComponent("transcript.srt"))
+    }
+
+    private static func polishStatus(for state: ModelState) -> String {
+        switch state {
+        case .downloading, .downloaded:
+            "Transkrypcja: pobieranie modelu…"
+        case .loading, .prewarming, .prewarmed:
+            "Transkrypcja: ładowanie modelu…"
+        case .loaded:
+            "Transkrypcja: rozpoznawanie mowy…"
+        case .unloading, .unloaded:
+            "Transkrypcja: przygotowanie…"
+        }
     }
 }
