@@ -89,11 +89,11 @@ final class TapScribeApplicationController: ObservableObject {
     }
 
     func notifyMenuRebuild() {
-        TapScribeStatusMenuController.shared.rebuildMenu()
         TapScribeStatusMenuController.shared.updateStatusBar(
             isRecording: isRecording,
             elapsedMMSS: recordingElapsedMMSS
         )
+        TapScribeStatusMenuController.shared.scheduleMenuRebuild()
         NotificationCenter.default.post(name: .tapScribeMenuRebuild, object: nil)
     }
 

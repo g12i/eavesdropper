@@ -7,6 +7,9 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
     private var menuIsOpen = false
+    private var pendingMenuRebuild = false
+
+    private static let statusSymbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
 
     private override init() {
         super.init()
@@ -18,6 +21,11 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         menu.delegate = self
         menu.autoenablesItems = false
+        if let button = statusItem?.button {
+            button.imagePosition = .imageLeading
+            button.imageScaling = .scaleProportionallyDown
+            button.appearsDisabled = false
+        }
         statusItem?.menu = menu
         updateStatusBar(
             isRecording: TapScribeApplicationController.shared.isRecording,
@@ -27,28 +35,44 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     func updateStatusBar(isRecording: Bool, elapsedMMSS: String?) {
-        let symbol = isRecording ? "record.circle" : "waveform.circle"
-        guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "TapScribe") else {
-            return
-        }
-        image.isTemplate = true
         guard let button = statusItem?.button else { return }
+
+        let symbol = isRecording ? "record.circle" : "waveform.circle"
+        let base = NSImage(systemSymbolName: symbol, accessibilityDescription: "TapScribe")
+        let image = base?.withSymbolConfiguration(Self.statusSymbolConfiguration) ?? base
+        guard let image else { return }
+
+        image.isTemplate = true
+        button.imagePosition = .imageLeading
+        button.appearsDisabled = false
         button.image = image
+
         if isRecording {
             button.contentTintColor = .systemRed
-            button.title = elapsedMMSS.map { " \($0)" } ?? ""
+            if let elapsedMMSS {
+                button.title = " \(elapsedMMSS)"
+            } else {
+                button.title = " 00:00"
+            }
         } else {
             button.contentTintColor = nil
             button.title = ""
         }
     }
 
+    /// Rebuilds the dropdown unless it is on-screen (AppKit crashes on `removeAllItems` while tracking).
+    func scheduleMenuRebuild() {
+        guard !menuIsOpen else {
+            pendingMenuRebuild = true
+            return
+        }
+        rebuildMenu()
+    }
+
     func refreshIfNeeded() {
         let app = TapScribeApplicationController.shared
         updateStatusBar(isRecording: app.isRecording, elapsedMMSS: app.recordingElapsedMMSS)
-        if menuIsOpen {
-            rebuildMenu()
-        }
+        scheduleMenuRebuild()
     }
 
     func rebuildMenu() {
@@ -111,6 +135,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     nonisolated func menuWillOpen(_ menu: NSMenu) {
         MainActor.assumeIsolated {
             menuIsOpen = true
+            pendingMenuRebuild = false
             let app = TapScribeApplicationController.shared
             app.refreshRecordingsList()
             rebuildMenu()
@@ -124,6 +149,10 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     nonisolated func menuDidClose(_ menu: NSMenu) {
         MainActor.assumeIsolated {
             menuIsOpen = false
+            if pendingMenuRebuild {
+                pendingMenuRebuild = false
+                rebuildMenu()
+            }
         }
     }
 
@@ -161,7 +190,9 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func toggleRecording(_ sender: NSMenuItem) {
-        Task { await TapScribeApplicationController.shared.toggleRecording() }
+        Task { @MainActor in
+            await TapScribeApplicationController.shared.toggleRecording()
+        }
     }
 
     @objc private func revealInFinder(_ sender: NSMenuItem) {
