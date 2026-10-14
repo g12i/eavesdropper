@@ -197,6 +197,12 @@ final class TapScribeApplicationController: ObservableObject {
             transcriptionPhase = .idle
             refreshRecordingsList()
             notifyMenuRebuild()
+            DispatchQueue.main.async {
+                TapScribeStatusMenuController.shared.updateStatusBar(
+                    isRecording: self.isRecording,
+                    elapsedMMSS: self.recordingElapsedMMSS
+                )
+            }
         } catch {
             transcriptionPhase = .failed(message: recordingErrorMessage(for: error))
             notifyMenuRebuild()

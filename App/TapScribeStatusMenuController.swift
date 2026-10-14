@@ -35,29 +35,39 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     func updateStatusBar(isRecording: Bool, elapsedMMSS: String?) {
-        guard let button = statusItem?.button else { return }
+        guard let statusItem, let button = statusItem.button else { return }
 
-        let symbol = isRecording ? "record.circle" : "waveform.circle"
-        let base = NSImage(systemSymbolName: symbol, accessibilityDescription: "TapScribe")
-        let image = base?.withSymbolConfiguration(Self.statusSymbolConfiguration) ?? base
-        guard let image else { return }
-
-        image.isTemplate = true
+        statusItem.length = NSStatusItem.variableLength
         button.imagePosition = .imageLeading
+        button.imageScaling = .scaleProportionallyDown
         button.appearsDisabled = false
-        button.image = image
+        button.contentTintColor = nil
 
         if isRecording {
-            button.contentTintColor = .systemRed
-            if let elapsedMMSS {
-                button.title = " \(elapsedMMSS)"
-            } else {
-                button.title = " 00:00"
-            }
+            button.title = elapsedMMSS ?? "00:00"
         } else {
-            button.contentTintColor = nil
             button.title = ""
         }
+
+        guard let image = Self.statusBarImage(isRecording: isRecording) else { return }
+        button.image = image
+    }
+
+    private static func statusBarImage(isRecording: Bool) -> NSImage? {
+        if isRecording {
+            let palette = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
+                .applying(Self.statusSymbolConfiguration)
+            let image = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe")?
+                .withSymbolConfiguration(palette)
+            return image ?? NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe")
+        }
+
+        guard let base = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "TapScribe") else {
+            return nil
+        }
+        let image = base.withSymbolConfiguration(Self.statusSymbolConfiguration) ?? base
+        image.isTemplate = true
+        return image
     }
 
     /// Rebuilds the dropdown unless it is on-screen (AppKit crashes on `removeAllItems` while tracking).
@@ -157,6 +167,8 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
                 pendingMenuRebuild = false
                 rebuildMenu()
             }
+            let app = TapScribeApplicationController.shared
+            updateStatusBar(isRecording: app.isRecording, elapsedMMSS: app.recordingElapsedMMSS)
         }
     }
 
