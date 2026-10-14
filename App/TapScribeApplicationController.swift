@@ -192,9 +192,9 @@ final class TapScribeApplicationController: ObservableObject {
         }
     }
 
-    func openRecording(_ row: RecordingMenuRow) {
-        lastSessionPath = row.url.path
-        RecordingsLocation.revealSessionFolder(row.url)
+    func openRecordingFolder(_ url: URL) {
+        lastSessionPath = url.path
+        RecordingsLocation.revealSessionFolder(url)
         refreshRecordingsList()
         notifyMenuRebuild()
     }

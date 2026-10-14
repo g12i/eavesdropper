@@ -71,10 +71,12 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         } else {
             for row in rows {
                 let item = NSMenuItem()
-                item.representedObject = row.id
+                item.representedObject = row.url
                 item.target = self
-                item.action = #selector(openRecording(_:))
-                item.view = RecordingRowMenuView(row: row)
+                item.action = #selector(revealInFinder(_:))
+                item.isEnabled = true
+                item.attributedTitle = RecordingMenuPresentation.menuAttributedTitle(for: row)
+                item.image = RecordingMenuPresentation.menuSymbolImage(for: row)
                 menu.addItem(item)
             }
         }
@@ -127,11 +129,9 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         Task { await TapScribeApplicationController.shared.toggleRecording() }
     }
 
-    @objc private func openRecording(_ sender: NSMenuItem) {
-        guard let sessionID = sender.representedObject as? String else { return }
-        let app = TapScribeApplicationController.shared
-        guard let row = app.recordingMenuRows.first(where: { $0.id == sessionID }) else { return }
-        app.openRecording(row)
+    @objc private func revealInFinder(_ sender: NSMenuItem) {
+        guard let folderURL = sender.representedObject as? URL else { return }
+        TapScribeApplicationController.shared.openRecordingFolder(folderURL)
     }
 
     @objc private func openModelSettings(_ sender: NSMenuItem) {
