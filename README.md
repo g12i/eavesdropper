@@ -26,7 +26,7 @@ Każda sesja to folder:
 
 Pliki: **`system.caf`**, po transkrypcji **`transcript.txt`** i **`transcript.srt`**.
 
-W menu: lista ostatnich nagrań (ikona + status), **Pokaż w Finderze** (ostatnia sesja lub `~/Recordings`).
+W menu paska systemowego (natywne **NSMenu**, jak Rectangle/Cursor): lista ostatnich nagrań z ikoną i kolorem statusu, **Pokaż w Finderze** (ostatnia sesja lub `~/Recordings`).
 
 ## Dźwięk wyjściowy (nie BlackHole)
 
