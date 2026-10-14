@@ -2,10 +2,9 @@ import XCTest
 @testable import TapScribe
 
 final class RecordingMenuPresentationTests: XCTestCase {
-    func testAlignedTitlePadsStatusColumn() {
-        let line = RecordingMenuPresentation.alignedTitle(title: "14 paź 2025, 13:20", status: "Gotowe")
-        XCTAssertTrue(line.contains("· Gotowe"))
-        XCTAssertTrue(line.hasPrefix("14 paź 2025, 13:20"))
+    func testInlineMenuLineFormat() {
+        let line = RecordingMenuPresentation.inlineMenuLine(title: "14.10 o 14:27", status: "Gotowe")
+        XCTAssertEqual(line, "14.10 o 14:27 · Gotowe")
     }
 
     func testTranscribingStateForLastSession() {

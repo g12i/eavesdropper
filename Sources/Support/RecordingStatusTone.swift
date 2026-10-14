@@ -5,6 +5,7 @@ enum RecordingStatusTone: Equatable {
     case error
     case ready
     case noTranscript
+    case configuration
 
     var foregroundColor: Color {
         switch self {
@@ -16,6 +17,8 @@ enum RecordingStatusTone: Equatable {
             .green
         case .noTranscript:
             .secondary
+        case .configuration:
+            .orange
         }
     }
 }
@@ -41,42 +44,3 @@ extension RecordingMenuRow {
     }
 }
 
-enum GlobalStatusPresentation {
-    static func tone(
-        isRecording: Bool,
-        transcription: TranscriptionPhase,
-        modelReady: Bool,
-        modelBusy: Bool
-    ) -> RecordingStatusTone {
-        if modelBusy {
-            return .working
-        }
-        if isRecording {
-            return .working
-        }
-        if case .running = transcription {
-            return .working
-        }
-        if case .failed = transcription {
-            return .error
-        }
-        if !modelReady {
-            return .error
-        }
-        return .ready
-    }
-
-    static func label(
-        isRecording: Bool,
-        transcription: TranscriptionPhase,
-        modelReady: Bool,
-        modelBusy: Bool
-    ) -> String {
-        AppStatusText.compactGlobalStatus(
-            isRecording: isRecording,
-            transcription: transcription,
-            modelReady: modelReady,
-            modelBusy: modelBusy
-        )
-    }
-}

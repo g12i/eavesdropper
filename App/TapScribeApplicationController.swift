@@ -13,6 +13,7 @@ final class TapScribeApplicationController: ObservableObject {
     let whisperModelStore = WhisperModelStore()
 
     @Published private(set) var isRecording = false
+    private(set) var recordingStartedAt: Date?
     private(set) var session = RecordingSession()
     @Published var lastSessionPath: String {
         didSet { UserDefaults.standard.set(lastSessionPath, forKey: Self.lastSessionPathKey) }
@@ -47,19 +48,16 @@ final class TapScribeApplicationController: ObservableObject {
         )
     }
 
-    var globalStatusLabel: String {
-        GlobalStatusPresentation.label(
-            isRecording: isRecording,
-            transcription: transcriptionPhase,
-            modelReady: whisperModelStore.isReady,
-            modelBusy: whisperModelStore.isBusy
-        )
+    var recordingElapsedMMSS: String? {
+        guard isRecording, let recordingStartedAt else { return nil }
+        return RecordingElapsedFormat.mmss(since: recordingStartedAt)
     }
 
-    var globalStatusTone: RecordingStatusTone {
-        GlobalStatusPresentation.tone(
+    var menuHeader: MenuHeaderModel {
+        MenuHeaderPresentation.model(
             isRecording: isRecording,
-            transcription: transcriptionPhase,
+            recordingElapsedMMSS: recordingElapsedMMSS,
+            systemAudioStatus: SystemAudioCapturePermission.currentStatus(),
             modelReady: whisperModelStore.isReady,
             modelBusy: whisperModelStore.isBusy
         )
@@ -92,7 +90,10 @@ final class TapScribeApplicationController: ObservableObject {
 
     func notifyMenuRebuild() {
         TapScribeStatusMenuController.shared.rebuildMenu()
-        TapScribeStatusMenuController.shared.updateStatusIcon(isRecording: isRecording)
+        TapScribeStatusMenuController.shared.updateStatusBar(
+            isRecording: isRecording,
+            elapsedMMSS: recordingElapsedMMSS
+        )
         NotificationCenter.default.post(name: .tapScribeMenuRebuild, object: nil)
     }
 
@@ -149,6 +150,7 @@ final class TapScribeApplicationController: ObservableObject {
             do {
                 try session.stop()
                 isRecording = false
+                recordingStartedAt = nil
                 if let dir {
                     lastSessionPath = dir.path
                     refreshRecordingsList()
@@ -163,6 +165,7 @@ final class TapScribeApplicationController: ObservableObject {
                 startTranscription(for: dir)
             } catch {
                 isRecording = false
+                recordingStartedAt = nil
                 transcriptionPhase = .failed(message: recordingErrorMessage(for: error))
                 notifyMenuRebuild()
             }
@@ -182,6 +185,7 @@ final class TapScribeApplicationController: ObservableObject {
         do {
             try session.start(in: dir)
             isRecording = true
+            recordingStartedAt = Date()
             lastSessionPath = dir.path
             transcriptionPhase = .idle
             refreshRecordingsList()

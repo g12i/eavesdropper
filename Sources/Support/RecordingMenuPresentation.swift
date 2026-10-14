@@ -37,18 +37,14 @@ struct RecordingMenuRow: Identifiable {
     }
 
     var menuLineTitle: String {
-        RecordingMenuPresentation.alignedTitle(title: title, status: trailingStatus)
+        RecordingMenuPresentation.inlineMenuLine(title: title, status: trailingStatus)
     }
 }
 
 enum RecordingMenuPresentation {
-    static let titleColumnWidth = 28
-
-    static func alignedTitle(title: String, status: String) -> String {
+    static func inlineMenuLine(title: String, status: String) -> String {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
-        let padCount = max(2, titleColumnWidth - trimmed.count)
-        let padding = String(repeating: " ", count: padCount)
-        return "\(trimmed)\(padding)· \(status)"
+        return "\(trimmed) · \(status)"
     }
 
     static func polishTitle(for entry: RecordingSessionEntry) -> String {
@@ -200,10 +196,10 @@ enum RecordingMenuPresentation {
         return f
     }()
 
-    private static let menuCompactDateFormatter: DateFormatter = {
+    private     static let menuCompactDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "pl_PL")
-        f.setLocalizedDateFormatFromTemplate("dMMMHHmm")
+        f.dateFormat = "d.MM 'o' HH:mm"
         return f
     }()
 

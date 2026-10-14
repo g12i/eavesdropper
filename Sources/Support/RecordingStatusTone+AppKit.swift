@@ -11,6 +11,8 @@ extension RecordingStatusTone {
             .systemGreen
         case .noTranscript:
             .secondaryLabelColor
+        case .configuration:
+            .systemOrange
         }
     }
 }

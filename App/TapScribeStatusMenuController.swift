@@ -19,22 +19,33 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem?.menu = menu
-        updateStatusIcon(isRecording: TapScribeApplicationController.shared.isRecording)
+        updateStatusBar(
+            isRecording: TapScribeApplicationController.shared.isRecording,
+            elapsedMMSS: TapScribeApplicationController.shared.recordingElapsedMMSS
+        )
         rebuildMenu()
     }
 
-    func updateStatusIcon(isRecording: Bool) {
-        let symbol = isRecording ? "record.circle.fill" : "waveform"
+    func updateStatusBar(isRecording: Bool, elapsedMMSS: String?) {
+        let symbol = isRecording ? "record.circle" : "waveform.circle"
         guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "TapScribe") else {
             return
         }
-        image.isTemplate = !isRecording
-        statusItem?.button?.image = image
+        image.isTemplate = true
+        guard let button = statusItem?.button else { return }
+        button.image = image
+        if isRecording {
+            button.contentTintColor = .systemRed
+            button.title = elapsedMMSS.map { " \($0)" } ?? ""
+        } else {
+            button.contentTintColor = nil
+            button.title = ""
+        }
     }
 
     func refreshIfNeeded() {
         let app = TapScribeApplicationController.shared
-        updateStatusIcon(isRecording: app.isRecording)
+        updateStatusBar(isRecording: app.isRecording, elapsedMMSS: app.recordingElapsedMMSS)
         if menuIsOpen {
             rebuildMenu()
         }
@@ -44,16 +55,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         let app = TapScribeApplicationController.shared
         menu.removeAllItems()
 
-        let header = NSMenuItem()
-        header.isEnabled = false
-        header.attributedTitle = NSAttributedString(
-            string: app.globalStatusLabel,
-            attributes: [
-                .foregroundColor: app.globalStatusTone.nsColor,
-                .font: NSFont.menuFont(ofSize: 12),
-            ]
-        )
-        menu.addItem(header)
+        addMenuHeader(for: app)
         menu.addItem(.separator())
 
         let toggleTitle = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
@@ -123,6 +125,39 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         MainActor.assumeIsolated {
             menuIsOpen = false
         }
+    }
+
+    private func addMenuHeader(for app: TapScribeApplicationController) {
+        let model = app.menuHeader
+        let header = NSMenuItem()
+        header.attributedTitle = NSAttributedString(
+            string: model.title,
+            attributes: [
+                .foregroundColor: model.tone.nsColor,
+                .font: NSFont.menuFont(ofSize: 12),
+            ]
+        )
+
+        if model.missingRequirements.isEmpty {
+            header.isEnabled = false
+            menu.addItem(header)
+            return
+        }
+
+        let configMenu = NSMenu()
+        for requirement in model.missingRequirements {
+            let item = NSMenuItem(title: requirement.menuTitle, action: nil, keyEquivalent: "")
+            switch requirement {
+            case .systemAudioPermission:
+                item.action = #selector(openSystemAudioSettings(_:))
+            case .whisperModel:
+                item.action = #selector(openModelSettings(_:))
+            }
+            item.target = self
+            configMenu.addItem(item)
+        }
+        menu.setSubmenu(configMenu, for: header)
+        menu.addItem(header)
     }
 
     @objc private func toggleRecording(_ sender: NSMenuItem) {
