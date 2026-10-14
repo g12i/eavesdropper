@@ -11,11 +11,6 @@ final class MicRecorder {
     func start(writingTo url: URL) throws {
         guard !isRecording else { return }
 
-        let granted = awaitPermission()
-        guard granted else {
-            throw MicRecorderError.microphonePermissionDenied
-        }
-
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
@@ -39,20 +34,9 @@ final class MicRecorder {
         audioFile = nil
         isRecording = false
     }
-
-    private func awaitPermission() -> Bool {
-        let sem = DispatchSemaphore(value: 0)
-        var allowed = false
-        AVCaptureDevice.requestAccess(for: .audio) { ok in
-            allowed = ok
-            sem.signal()
-        }
-        sem.wait()
-        return allowed
-    }
 }
 
-enum MicRecorderError: LocalizedError {
+enum MicRecorderError: LocalizedError, Equatable {
     case microphonePermissionDenied
 
     var errorDescription: String? {

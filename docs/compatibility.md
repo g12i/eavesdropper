@@ -7,4 +7,6 @@
 
 `scripts/check-prerequisites.sh` fails on Sonoma when `xcode-select` points at Xcode 17+ or a path containing `Xcode-27`.
 
-Unsigned local builds: omit `DEVELOPMENT_TEAM` and run `./scripts/build.sh` (sets `CODE_SIGNING_ALLOWED=NO`). For stable TCC prompts, use Apple Development signing (plan step 0.4).
+Unsigned local builds: omit `DEVELOPMENT_TEAM` and run `./scripts/build.sh` (sets `CODE_SIGNING_ALLOWED=NO`). For stable TCC prompts, use Apple Development signing (plan step 0.4). Keep `PRODUCT_BUNDLE_IDENTIFIER` at `com.tapscribe.app`.
+
+**Disk:** `check-prerequisites.sh` requires **8 GB** free for runtime (override with `TAPSCRIBE_MIN_FREE_GB`). Product plan “40 GB” meant **first Xcode install + model**, not everyday recording.

@@ -25,7 +25,7 @@ final class SystemAudioTap {
         var tapID = AudioObjectID.unknown
         var err = AudioHardwareCreateProcessTap(tapDescription, &tapID)
         guard err == noErr else {
-            throw CoreAudioError(message: "AudioHardwareCreateProcessTap failed: \(err)")
+            throw SystemAudioCaptureError.tapFailed(err)
         }
         processTapID = tapID
 

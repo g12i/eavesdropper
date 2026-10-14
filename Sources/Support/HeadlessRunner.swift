@@ -3,8 +3,14 @@ import Foundation
 enum HeadlessRunner {
     static func runIfNeeded() async -> Bool {
         let args = CommandLine.arguments
-        guard args.contains("--headless") || args.contains("--transcribe") else {
+        guard args.contains("--headless") || args.contains("--transcribe") || args.contains("--probe-capture") else {
             return false
+        }
+
+        if args.contains("--probe-capture") {
+            let includeMic = !args.contains("--no-mic")
+            CaptureDiagnostics.printReport(includeMicrophone: includeMic)
+            exit(0)
         }
 
         if let transcribeIndex = args.firstIndex(of: "--transcribe"), transcribeIndex + 1 < args.count {
