@@ -43,15 +43,22 @@ final class WhisperModelStore: ObservableObject {
                     onProgress: { [weak self] progress in
                         Task { @MainActor in
                             guard let self else { return }
-                            self.downloadFraction = progress.fractionCompleted
-                            let percent = Int(progress.fractionCompleted * 100)
-                            self.statusLine = "Pobieranie modelu… \(percent)%"
+                            let fraction = progress.fractionCompleted
+                            if fraction >= 1.0 {
+                                self.downloadFraction = nil
+                                self.statusLine = "Pliki pobrane. Ładowanie modelu…"
+                            } else {
+                                self.downloadFraction = fraction
+                                let percent = Int(fraction * 100)
+                                self.statusLine = "Pobieranie modelu… \(percent)%"
+                            }
                             self.detailLine = self.polishProgressDetail(progress)
                         }
                     },
                     onModelState: { [weak self] _, newState in
                         Task { @MainActor in
-                            self?.detailLine = Self.polishModelState(newState)
+                            guard let self else { return }
+                            self.applyModelStateToUI(newState)
                         }
                     }
                 )
@@ -81,6 +88,21 @@ final class WhisperModelStore: ObservableObject {
     }
 
     static let onboardingCompletedKey = "whisperOnboardingCompleted"
+
+    private func applyModelStateToUI(_ state: ModelState) {
+        let line = Self.polishModelState(state)
+        detailLine = line
+        switch state {
+        case .downloading, .downloaded:
+            break
+        case .loading, .prewarming, .prewarmed, .unloading, .unloaded:
+            downloadFraction = nil
+            statusLine = line
+        case .loaded:
+            downloadFraction = nil
+            statusLine = "Model gotowy."
+        }
+    }
 
     private static func polishModelState(_ state: ModelState) -> String {
         switch state {

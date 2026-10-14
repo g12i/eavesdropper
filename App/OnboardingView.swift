@@ -83,5 +83,10 @@ struct OnboardingView: View {
                 onFinished()
             }
         }
+        .onChange(of: modelStore.isReady) { _, isReady in
+            if isReady, !modelStore.isBusy {
+                onFinished()
+            }
+        }
     }
 }
