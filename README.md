@@ -1,6 +1,26 @@
 # TapScribe (audio-in-the-middle)
 
-Menu bar app for macOS 14.4+ that records **system audio** (Core Audio process tap) and **microphone** on separate tracks, then transcribes locally with WhisperKit (Polish).
+Menu bar app for macOS 14.4+ that records **system audio** (Core Audio process tap) and optionally **microphone** on separate tracks, then transcribes locally with WhisperKit (Polish) **after** you stop recording.
+
+## M1 workflow (local git only)
+
+This tree on the M1 Pro uses **local-only git** (no remote). Do **not** run `git pull` / `git fetch` to update code.
+
+1. Cursor private worker commits on **`main`** on the same machine.
+2. You rebuild the app:
+
+   ```bash
+   cd ~/Projects/personal/audio-in-the-middle
+   ./scripts/build.sh
+   ```
+
+3. Optional — see the last agent commit:
+
+   ```bash
+   git log -1 --oneline
+   ```
+
+Details: [docs/workflow-m1.md](docs/workflow-m1.md).
 
 ## Sound output (not BlackHole)
 
@@ -8,10 +28,12 @@ TapScribe does **not** install a virtual output device and does **not** appear i
 
 ## Permissions (TCC)
 
-On **Start nagrywania**, TapScribe:
+On **Start nagrywania**, TapScribe ( **no Whisper model required** ):
 
-1. Requests **microphone** access (if enabled).
-2. Requests **system audio recording** consent, then starts the process tap.
+1. Requests **system audio recording** consent and starts the process tap → `system.caf`.
+2. Requests **microphone** access only if **Nagrywaj mikrofon** is enabled → optional `mic.caf`.
+
+Transcription runs **after Stop**, in the background. If the Whisper model is missing, it is **downloaded then**; recording is not blocked.
 
 Use menu items **Ustawienia: dźwięk systemu…** and **Ustawienia: mikrofon…** if access was denied.
 

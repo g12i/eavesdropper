@@ -51,22 +51,7 @@ enum HeadlessRunner {
     }
 
     static func transcribeSession(at directory: URL) async throws {
-        var mic: [TranscriptSegment] = []
-        var system: [TranscriptSegment] = []
-
-        let micPath = directory.appendingPathComponent("mic.caf")
-        let systemPath = directory.appendingPathComponent("system.caf")
-
-        if FileManager.default.fileExists(atPath: micPath.path) {
-            mic = try await Transcriber.transcribe(path: micPath, speaker: .me)
-        }
-        if FileManager.default.fileExists(atPath: systemPath.path) {
-            system = try await Transcriber.transcribe(path: systemPath, speaker: .others)
-        }
-
-        let merged = TranscriptMerger.merge(micSegments: mic, systemSegments: system)
-        try TranscriptMerger.writeTXT(merged, to: directory.appendingPathComponent("transcript.txt"))
-        try TranscriptMerger.writeSRT(merged, to: directory.appendingPathComponent("transcript.srt"))
+        try await TranscriptionService.transcribeSession(at: directory)
     }
 
     private static func parseInt(flag: String, in args: [String]) -> Int? {

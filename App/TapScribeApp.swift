@@ -34,8 +34,9 @@ enum TapScribeMain {
 struct TapScribeApp: App {
     @State private var isRecording = false
     @State private var session = RecordingSession()
-    @State private var recordMicrophone = true
+    @AppStorage("recordMicrophone") private var recordMicrophone = false
     @State private var status = "Gotowy"
+    @State private var transcriptionTask: Task<Void, Never>?
 
     private var bundleLabel: String {
         Bundle.main.bundleIdentifier ?? "?"
@@ -46,7 +47,11 @@ struct TapScribeApp: App {
             Button(isRecording ? "Stop nagrywania" : "Start nagrywania") {
                 Task { await toggleRecording() }
             }
-            Toggle("Nagrywaj mikrofon", isOn: $recordMicrophone)
+            Text("Nagrywa dźwięk z komputera (YouTube, rozmowy w aplikacjach). Nie pojawia się na liście wyjść w Ustawieniach → Dźwięk.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle("Nagrywaj mikrofon (Twój głos)", isOn: $recordMicrophone)
                 .disabled(isRecording)
             Divider()
             Button("Ustawienia: dźwięk systemu…") {
@@ -62,6 +67,7 @@ struct TapScribeApp: App {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             Button("Zakończ") {
+                transcriptionTask?.cancel()
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -71,22 +77,20 @@ struct TapScribeApp: App {
     @MainActor
     private func toggleRecording() async {
         if isRecording {
+            let dir = session.outputDirectory
             do {
                 try session.stop()
-                status = "Transkrybuję…"
-                if let dir = session.outputDirectory {
-                    try await HeadlessRunner.transcribeSession(at: dir)
-                    status = "Transkrypt gotowy"
-                } else {
-                    status = "Gotowy"
-                }
+                isRecording = false
+                status = "Nagranie zapisane (dźwięk systemu\(recordMicrophone ? " + mikrofon" : ""))."
+                startTranscription(for: dir)
             } catch {
-                status = userFacingStatus(for: error)
+                isRecording = false
+                status = recordingErrorMessage(for: error)
             }
-            isRecording = false
             return
         }
 
+        transcriptionTask?.cancel()
         NSApplication.shared.activate(ignoringOtherApps: true)
 
         let formatter = DateFormatter()
@@ -98,24 +102,49 @@ struct TapScribeApp: App {
         do {
             try session.start(in: dir, recordMicrophone: recordMicrophone)
             isRecording = true
-            status = "Nagrywanie…"
+            status = recordMicrophone
+                ? "Nagrywanie: dźwięk systemu + mikrofon…"
+                : "Nagrywanie: dźwięk systemu…"
         } catch {
-            status = userFacingStatus(for: error)
+            status = recordingErrorMessage(for: error)
         }
     }
 
-    private func userFacingStatus(for error: Error) -> String {
-        if let mic = error as? MicRecorderError, mic == .microphonePermissionDenied {
-            return "Brak zgody na mikrofon — otwórz Ustawienia poniżej."
-        }
-        if let sys = error as? SystemAudioCaptureError {
-            switch sys {
-            case .denied:
-                return "Brak zgody na dźwięk systemu — otwórz Ustawienia poniżej."
-            case .tapFailed(let code):
-                return "Tap dźwięku systemu nie wystartował (kod \(code))."
+    @MainActor
+    private func startTranscription(for directory: URL?) {
+        guard let directory else { return }
+        transcriptionTask = Task {
+            do {
+                try await TranscriptionService.transcribeSession(at: directory) { message in
+                    Task { @MainActor in
+                        status = message
+                    }
+                }
+                status = "Transkrypt gotowy"
+            } catch is CancellationError {
+                status = "Transkrypcja anulowana (nagranie zapisane)."
+            } catch {
+                status = "Nagranie OK. \(transcriptionErrorMessage(for: error))"
             }
         }
-        return "Błąd: \(error.localizedDescription)"
+    }
+
+    private func recordingErrorMessage(for error: Error) -> String {
+        if let sessionError = error as? RecordingSessionError {
+            switch sessionError {
+            case .systemAudio:
+                return "Nagrywanie — dźwięk systemu: \(sessionError.localizedDescription ?? "błąd")"
+            case .microphone:
+                return "Nagrywanie — mikrofon: \(sessionError.localizedDescription ?? "błąd") (dźwięk systemu działa po wyłączeniu mikrofonu)"
+            }
+        }
+        return "Nagrywanie: \(error.localizedDescription)"
+    }
+
+    private func transcriptionErrorMessage(for error: Error) -> String {
+        if let t = error as? TranscriberError {
+            return t.localizedDescription ?? "błąd transkrypcji"
+        }
+        return "Transkrypcja: \(error.localizedDescription)"
     }
 }

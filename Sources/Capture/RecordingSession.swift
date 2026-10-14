@@ -6,6 +6,7 @@ struct SessionMetadata: Codable {
     let systemStartHostTime: UInt64?
     let micStartHostTime: UInt64?
     let startedAt: Date
+    let recordMicrophone: Bool
 }
 
 final class RecordingSession {
@@ -16,43 +17,48 @@ final class RecordingSession {
 
     var isRecording: Bool { systemTap.isRunning }
 
+    /// Primary path: system audio (process tap). Microphone is optional.
     func start(in directory: URL, recordMicrophone: Bool) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         outputDirectory = directory
 
         activateForCapture()
 
-        var micStarted = false
+        var systemStarted = false
         do {
-            if recordMicrophone {
-                try MicrophonePermission.ensureAuthorized()
-                let micURL = directory.appendingPathComponent("mic.caf")
-                try micRecorder.start(writingTo: micURL)
-                micStarted = true
-                logger.info("Microphone recording started")
-            }
-
             try SystemAudioCapturePermission.ensureAuthorized()
-
             let systemURL = directory.appendingPathComponent("system.caf")
             try systemTap.start(writingTo: systemURL)
+            systemStarted = true
             logger.info("System audio tap started")
+
+            if recordMicrophone {
+                do {
+                    try MicrophonePermission.ensureAuthorized()
+                    let micURL = directory.appendingPathComponent("mic.caf")
+                    try micRecorder.start(writingTo: micURL)
+                    logger.info("Microphone recording started")
+                } catch {
+                    throw RecordingSessionError.microphone(underlying: error)
+                }
+            }
 
             let meta = SessionMetadata(
                 systemStartHostTime: mach_absolute_time(),
                 micStartHostTime: recordMicrophone ? micRecorder.startHostTime : nil,
-                startedAt: Date()
+                startedAt: Date(),
+                recordMicrophone: recordMicrophone
             )
             let data = try JSONEncoder().encode(meta)
             try data.write(to: directory.appendingPathComponent("session.json"))
+        } catch let sessionError as RecordingSessionError {
+            logger.error("Recording start failed (\(sessionError.failurePhase)): \(sessionError.localizedDescription, privacy: .public)")
+            rollback(systemStarted: systemStarted)
+            throw sessionError
         } catch {
-            logger.error("Recording start failed: \(error.localizedDescription, privacy: .public)")
-            if micStarted {
-                micRecorder.stop()
-            }
-            try? systemTap.stop()
-            outputDirectory = nil
-            throw error
+            logger.error("Recording start failed (system): \(error.localizedDescription, privacy: .public)")
+            rollback(systemStarted: systemStarted)
+            throw RecordingSessionError.systemAudio(underlying: error)
         }
     }
 
@@ -67,6 +73,14 @@ final class RecordingSession {
 
     func micAudioURL() -> URL? {
         outputDirectory?.appendingPathComponent("mic.caf")
+    }
+
+    private func rollback(systemStarted: Bool) {
+        if systemStarted {
+            try? systemTap.stop()
+        }
+        micRecorder.stop()
+        outputDirectory = nil
     }
 
     private func activateForCapture() {
