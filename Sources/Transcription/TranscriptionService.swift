@@ -11,7 +11,7 @@ enum TranscriptionService {
             throw TranscriberError.noAudioFiles
         }
 
-        onStatus?("Transkrypcja: pobieranie modelu…")
+        onStatus?("Transkrypcja: ładowanie modelu…")
 
         let whisperKit = try await Transcriber.makeWhisperKit { _, newState in
             onStatus?(polishStatus(for: newState))

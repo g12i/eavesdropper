@@ -5,25 +5,23 @@ enum WhisperModelReadiness {
     typealias ProgressHandler = @Sendable (Progress) -> Void
 
     /// Finds a folder under `Transcriber.modelsDirectory` that contains Whisper Core ML weights.
-    static func localModelFolder() async -> URL? {
+    /// Filesystem only (no network), cheap enough to call on the main thread when the menu opens.
+    static func localModelFolder() -> URL? {
         let base = Transcriber.modelsDirectory
         guard FileManager.default.fileExists(atPath: base.path) else {
             return nil
         }
-
-        let variant = await Transcriber.preferredModelVariant()
-        if let direct = folderContainingMelSpectrogram(startingAt: base, preferNameContains: variant) {
-            return direct
-        }
-        return folderContainingMelSpectrogram(startingAt: base, preferNameContains: nil)
+        return folderContainingMelSpectrogram(startingAt: base, preferNameContains: Transcriber.pinnedModelVariant)
     }
 
-    static func isModelPresentOnDisk() async -> Bool {
-        await localModelFolder() != nil
+    static func isModelPresentOnDisk() -> Bool {
+        localModelFolder() != nil
     }
 
+    /// Downloads the model, then loads it once so the slow first Core ML compile happens during onboarding.
     static func downloadAndPrepare(
         onProgress: ProgressHandler? = nil,
+        onDownloadFinished: (@Sendable () -> Void)? = nil,
         onModelState: ModelStateCallback? = nil
     ) async throws {
         let variant = await Transcriber.preferredModelVariant()
@@ -34,6 +32,8 @@ enum WhisperModelReadiness {
                 onProgress?(progress)
             }
         )
+        try Task.checkCancellation()
+        onDownloadFinished?()
 
         let config = WhisperKitConfig(
             model: variant,
@@ -42,21 +42,18 @@ enum WhisperModelReadiness {
             verbose: false,
             logLevel: .info,
             prewarm: false,
-            load: true,
+            load: false,
             download: false,
             useBackgroundDownloadSession: false
         )
 
         let whisperKit = try await WhisperKit(config)
-        if let onModelState {
-            whisperKit.modelStateCallback = onModelState
-        }
-        if whisperKit.modelState != .loaded {
-            try await whisperKit.loadModels()
-        }
+        whisperKit.modelStateCallback = onModelState
+        try await whisperKit.loadModels()
     }
 
     static func removeCachedModels() throws {
+        Transcriber.clearPinnedModelVariant()
         let base = Transcriber.modelsDirectory
         if FileManager.default.fileExists(atPath: base.path) {
             try FileManager.default.removeItem(at: base)
@@ -76,7 +73,11 @@ enum WhisperModelReadiness {
         var matches: [URL] = []
         for case let url as URL in enumerator {
             let name = url.lastPathComponent
-            guard name.hasPrefix("MelSpectrogram"), name.hasSuffix(".mlmodelc") || name.hasSuffix(".mlpackage") else {
+            let isModelBundle = name.hasSuffix(".mlmodelc") || name.hasSuffix(".mlpackage")
+            if isModelBundle {
+                enumerator.skipDescendants()
+            }
+            guard name.hasPrefix("MelSpectrogram"), isModelBundle else {
                 continue
             }
             let folder = url.deletingLastPathComponent()

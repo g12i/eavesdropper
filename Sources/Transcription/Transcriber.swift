@@ -11,7 +11,7 @@ enum Transcriber {
         try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
         let modelVariant = await preferredModelVariant()
-        let localFolder = await WhisperModelReadiness.localModelFolder()
+        let localFolder = WhisperModelReadiness.localModelFolder()
         let config = WhisperKitConfig(
             model: modelVariant,
             downloadBase: modelsDirectory,
@@ -19,15 +19,15 @@ enum Transcriber {
             verbose: false,
             logLevel: .info,
             prewarm: false,
-            load: true,
+            load: false,
             download: localFolder == nil,
             useBackgroundDownloadSession: false
         )
 
         let whisperKit = try await WhisperKit(config)
-        if let onModelState {
-            whisperKit.modelStateCallback = onModelState
-        }
+        // Load after attaching the callback so callers see the loading phase.
+        whisperKit.modelStateCallback = onModelState
+        try await whisperKit.loadModels()
         return whisperKit
     }
 
@@ -66,12 +66,34 @@ enum Transcriber {
         }
     }
 
-    static func preferredModelVariant() async -> String {
+    private static let modelVariantKey = "whisperModelVariant"
+
+    /// Variant resolved without network: env override, then the one pinned at download time.
+    static var pinnedModelVariant: String? {
         if let env = ProcessInfo.processInfo.environment["TAPSCRIBE_WHISPER_MODEL"], !env.isEmpty {
             return env
         }
+        return UserDefaults.standard.string(forKey: modelVariantKey)
+    }
+
+    /// Pinned so readiness checks stay offline and a changed remote default never triggers a surprise re-download.
+    static func preferredModelVariant() async -> String {
+        if let pinned = pinnedModelVariant {
+            return pinned
+        }
+        // Folder names in argmaxinc/whisperkit-coreml are the variant names.
+        if let local = WhisperModelReadiness.localModelFolder() {
+            let variant = local.lastPathComponent
+            UserDefaults.standard.set(variant, forKey: modelVariantKey)
+            return variant
+        }
         let remote = await WhisperKit.recommendedRemoteModels(downloadBase: modelsDirectory)
+        UserDefaults.standard.set(remote.default, forKey: modelVariantKey)
         return remote.default
+    }
+
+    static func clearPinnedModelVariant() {
+        UserDefaults.standard.removeObject(forKey: modelVariantKey)
     }
 
     private static func mapSegments(_ results: [TranscriptionResult]) -> [TranscriptSegment] {

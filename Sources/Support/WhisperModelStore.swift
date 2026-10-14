@@ -6,15 +6,23 @@ import WhisperKit
 final class WhisperModelStore: ObservableObject {
     @Published private(set) var isReady = false
     @Published private(set) var isBusy = false
+    /// True after files are on disk while WhisperKit compiles/loads the model (can take minutes on first run).
+    @Published private(set) var isLoadingModel = false
     @Published var statusLine = "Sprawdzanie modelu…"
     @Published var detailLine = ""
     @Published var downloadFraction: Double?
 
     private var downloadTask: Task<Void, Never>?
+    private var downloadGeneration = 0
     var onReadyStateChanged: (() -> Void)?
 
-    func refreshReadyState() async {
-        isReady = await WhisperModelReadiness.isModelPresentOnDisk()
+    static let onboardingCompletedKey = "whisperOnboardingCompleted"
+
+    /// No-op while a download runs: the partially downloaded folder would look ready and the
+    /// "requires download" copy would overwrite live progress.
+    func refreshReadyState() {
+        guard !isBusy else { return }
+        isReady = WhisperModelReadiness.isModelPresentOnDisk()
         if isReady {
             statusLine = "Model transkrypcji jest gotowy."
             detailLine = ""
@@ -28,13 +36,18 @@ final class WhisperModelStore: ObservableObject {
     func startDownload(forceRedownload: Bool = false) {
         guard !isBusy else { return }
         downloadTask?.cancel()
+        downloadGeneration += 1
+        let generation = downloadGeneration
+
+        isBusy = true
+        isReady = false
+        isLoadingModel = false
+        downloadFraction = nil
+        statusLine = forceRedownload ? "Usuwanie starego modelu…" : "Przygotowanie pobierania…"
+        detailLine = ""
+        onReadyStateChanged?()
 
         downloadTask = Task {
-            isBusy = true
-            downloadFraction = nil
-            statusLine = forceRedownload ? "Usuwanie starego modelu…" : "Przygotowanie pobierania…"
-            detailLine = ""
-
             do {
                 if forceRedownload {
                     try WhisperModelReadiness.removeCachedModels()
@@ -43,83 +56,85 @@ final class WhisperModelStore: ObservableObject {
                 try await WhisperModelReadiness.downloadAndPrepare(
                     onProgress: { [weak self] progress in
                         Task { @MainActor in
-                            guard let self else { return }
-                            let fraction = progress.fractionCompleted
-                            if fraction >= 1.0 {
-                                self.downloadFraction = nil
-                                self.statusLine = "Pliki pobrane. Ładowanie modelu…"
-                            } else {
-                                self.downloadFraction = fraction
-                                let percent = Int(fraction * 100)
-                                self.statusLine = "Pobieranie modelu… \(percent)%"
-                            }
-                            self.detailLine = self.polishProgressDetail(progress)
+                            self?.applyDownloadProgress(progress, generation: generation)
+                        }
+                    },
+                    onDownloadFinished: { [weak self] in
+                        Task { @MainActor in
+                            self?.enterLoadingPhase(generation: generation)
                         }
                     },
                     onModelState: { [weak self] _, newState in
                         Task { @MainActor in
-                            guard let self else { return }
-                            self.applyModelStateToUI(newState)
+                            self?.applyModelState(newState, generation: generation)
                         }
                     }
                 )
-
-                await refreshReadyState()
-                if !isReady {
-                    isReady = true
-                }
-                downloadFraction = 1
+                guard generation == downloadGeneration else { return }
+                isReady = true
+                finishDownload()
                 statusLine = "Model gotowy. Możesz nagrywać i transkrybować."
                 detailLine = ""
                 UserDefaults.standard.set(true, forKey: Self.onboardingCompletedKey)
-                onReadyStateChanged?()
             } catch is CancellationError {
+                guard generation == downloadGeneration else { return }
+                finishDownload()
+                refreshReadyState()
                 statusLine = "Pobieranie anulowane."
-                await refreshReadyState()
             } catch {
+                guard generation == downloadGeneration else { return }
+                finishDownload()
                 isReady = false
                 statusLine = "Nie udało się pobrać modelu."
                 detailLine = error.localizedDescription
             }
-
-            isBusy = false
             onReadyStateChanged?()
         }
     }
 
     func cancelDownload() {
+        guard isBusy else { return }
         downloadTask?.cancel()
         downloadTask = nil
+        downloadGeneration += 1
+        finishDownload()
+        refreshReadyState()
+        statusLine = "Pobieranie anulowane."
+        onReadyStateChanged?()
+    }
+
+    private func finishDownload() {
         isBusy = false
+        isLoadingModel = false
+        downloadFraction = nil
     }
 
-    static let onboardingCompletedKey = "whisperOnboardingCompleted"
-
-    private func applyModelStateToUI(_ state: ModelState) {
-        let line = Self.polishModelState(state)
-        detailLine = line
-        switch state {
-        case .downloading, .downloaded:
-            break
-        case .loading, .prewarming, .prewarmed, .unloading, .unloaded:
-            downloadFraction = nil
-            statusLine = line
-        case .loaded:
-            downloadFraction = nil
-            statusLine = "Model gotowy."
-        }
+    private func applyDownloadProgress(_ progress: Progress, generation: Int) {
+        guard generation == downloadGeneration, isBusy, !isLoadingModel else { return }
+        let fraction = min(max(progress.fractionCompleted, 0), 1)
+        downloadFraction = fraction
+        statusLine = "Pobieranie modelu… \(Int(fraction * 100))%"
+        detailLine = polishProgressDetail(progress)
+        onReadyStateChanged?()
     }
 
-    private static func polishModelState(_ state: ModelState) -> String {
+    private func enterLoadingPhase(generation: Int) {
+        guard generation == downloadGeneration, isBusy, !isLoadingModel else { return }
+        isLoadingModel = true
+        downloadFraction = nil
+        statusLine = "Pliki pobrane. Ładowanie modelu…"
+        detailLine = "Pierwsze ładowanie optymalizuje model pod ten Mac i może potrwać kilka minut."
+        onReadyStateChanged?()
+    }
+
+    private func applyModelState(_ state: ModelState, generation: Int) {
+        guard generation == downloadGeneration, isBusy else { return }
         switch state {
-        case .downloading, .downloaded:
-            "Pobieranie plików modelu…"
         case .loading, .prewarming, .prewarmed:
-            "Ładowanie modelu do pamięci…"
-        case .loaded:
-            "Model załadowany."
-        case .unloading, .unloaded:
-            "Przygotowanie…"
+            enterLoadingPhase(generation: generation)
+            statusLine = "Ładowanie modelu do pamięci…"
+        case .downloading, .downloaded, .loaded, .unloading, .unloaded:
+            break
         }
     }
 
@@ -128,9 +143,8 @@ final class WhisperModelStore: ObservableObject {
             return file
         }
         if progress.totalUnitCount > 0 {
-            let done = progress.completedUnitCount
-            let total = progress.totalUnitCount
-            return "\(done) / \(total)"
+            // Hub snapshot progress counts files, not bytes.
+            return "Plik \(progress.completedUnitCount) z \(progress.totalUnitCount)"
         }
         return "Trwa pobieranie…"
     }

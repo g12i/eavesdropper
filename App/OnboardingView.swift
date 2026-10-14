@@ -31,23 +31,17 @@ struct OnboardingView: View {
                     }
                 }
                 .progressViewStyle(.linear)
-
-                if !modelStore.detailLine.isEmpty {
-                    Text(modelStore.detailLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
             } else {
                 Text(modelStore.statusLine)
                     .font(.body)
+            }
 
-                if !modelStore.detailLine.isEmpty {
-                    Text(modelStore.detailLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            if !modelStore.detailLine.isEmpty {
+                Text(modelStore.detailLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
@@ -57,7 +51,7 @@ struct OnboardingView: View {
                     }
                     .keyboardShortcut(.defaultAction)
                 } else if modelStore.isBusy {
-                    Button("Anuluj pobieranie") {
+                    Button(modelStore.isLoadingModel ? "Anuluj" : "Anuluj pobieranie") {
                         modelStore.cancelDownload()
                     }
                 } else {
@@ -75,16 +69,11 @@ struct OnboardingView: View {
         }
         .padding(24)
         .frame(width: 460)
-        .task {
-            await modelStore.refreshReadyState()
+        .onAppear {
+            modelStore.refreshReadyState()
         }
         .onChange(of: modelStore.isBusy) { wasBusy, isBusy in
             if wasBusy, !isBusy, modelStore.isReady {
-                onFinished()
-            }
-        }
-        .onChange(of: modelStore.isReady) { _, isReady in
-            if isReady, !modelStore.isBusy {
                 onFinished()
             }
         }
