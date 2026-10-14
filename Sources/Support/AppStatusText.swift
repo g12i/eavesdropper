@@ -9,6 +9,38 @@ enum TranscriptionPhase: Equatable {
 }
 
 enum AppStatusText {
+    static func compactGlobalStatus(
+        isRecording: Bool,
+        transcription: TranscriptionPhase,
+        modelReady: Bool,
+        modelBusy: Bool
+    ) -> String {
+        let activity: String
+        if isRecording {
+            activity = "Nagrywanie"
+        } else {
+            switch transcription {
+            case .idle, .cancelled, .succeeded:
+                activity = "Gotowy"
+            case .running:
+                activity = "Transkrypcja"
+            case .failed:
+                activity = "Błąd"
+            }
+        }
+
+        let whisper: String
+        if modelReady {
+            whisper = "Whisper OK"
+        } else if modelBusy {
+            whisper = "Whisper…"
+        } else {
+            whisper = "Whisper brak"
+        }
+
+        return "\(activity) · \(whisper)"
+    }
+
     static func mainLine(isRecording: Bool, transcription: TranscriptionPhase) -> String {
         if isRecording {
             return "Status: nagrywanie…"

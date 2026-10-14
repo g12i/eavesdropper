@@ -47,27 +47,25 @@ struct TapScribeApp: App {
         return URL(fileURLWithPath: lastSessionPath, isDirectory: true)
     }
 
-    private var recentRecordings: [RecordingSessionEntry] {
+    private var recordingMenuRows: [RecordingMenuRow] {
         _ = recordingsRefreshToken
-        return RecordingsIndex.recent(limit: 15)
+        return RecordingMenuPresentation.rows(
+            recent: RecordingsIndex.recent(limit: 15),
+            activeRecordingDirectory: session.outputDirectory,
+            isRecording: isRecording,
+            lastSessionPath: lastSessionPath,
+            transcription: transcriptionPhase,
+            modelReady: whisperModelStore.isReady
+        )
     }
 
-    private var statusMainLine: String {
-        AppStatusText.mainLine(isRecording: isRecording, transcription: transcriptionPhase)
-    }
-
-    private var statusTranscriptLine: String {
-        AppStatusText.transcriptLine(for: lastSessionURL, transcription: transcriptionPhase)
-    }
-
-    private var modelMenuLine: String {
-        if whisperModelStore.isReady {
-            return "Model Whisper: gotowy"
-        }
-        if whisperModelStore.isBusy {
-            return "Model Whisper: pobieranie…"
-        }
-        return "Model Whisper: brak"
+    private var globalStatusLine: String {
+        AppStatusText.compactGlobalStatus(
+            isRecording: isRecording,
+            transcription: transcriptionPhase,
+            modelReady: whisperModelStore.isReady,
+            modelBusy: whisperModelStore.isBusy
+        )
     }
 
     var body: some Scene {
@@ -80,69 +78,60 @@ struct TapScribeApp: App {
     @ViewBuilder
     private var menuContent: some View {
         Group {
-        Button(isRecording ? "Stop nagrywania" : "Start nagrywania") {
-            Task { await toggleRecording() }
-        }
+            Text(globalStatusLine)
+                .font(.caption)
 
-        Text("Nagrywa dźwięk z komputera (YouTube, rozmowy). Nie zmienia wyjścia dźwięku w Ustawieniach.")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+            Button(isRecording ? "Zakończ nagrywanie" : "Start nagrywania") {
+                Task { await toggleRecording() }
+            }
 
-        Divider()
+            Divider()
 
-        Menu("Lista nagrań") {
-            if recentRecordings.isEmpty {
-                Text("Brak nagrań w ~/Recordings")
+            if recordingMenuRows.isEmpty {
+                Text("Brak nagrań")
+                    .font(.caption)
             } else {
-                ForEach(recentRecordings) { entry in
-                    Button(entry.menuTitle) {
-                        lastSessionPath = entry.url.path
-                        RecordingsLocation.openInFinder(sessionDirectory: entry.url)
+                ForEach(recordingMenuRows) { row in
+                    RecordingMenuRowView(row: row) {
+                        lastSessionPath = row.url.path
+                        RecordingsLocation.openInFinder(sessionDirectory: row.url)
                         refreshRecordingsList()
                     }
                 }
             }
-        }
 
-        Button("Pokaż w Finderze") {
-            RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
-        }
-        Button("Otwórz folder nagrań…") {
-            RecordingsLocation.openRecordingsRootInFinder()
-        }
-
-        Divider()
-
-        Menu("Ustawienia") {
-            Button("Model transkrypcji…") {
-                presentOnboarding()
-            }
-            Button("Pobierz ponownie model…") {
-                Task { await prepareRedownloadOnboarding() }
-            }
             Divider()
-            Button("Dźwięk systemu (TCC)…") {
-                PrivacySettings.openSystemAudioRecording()
+
+            Button("Pokaż w Finderze") {
+                RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
+            }
+
+            Menu("Ustawienia") {
+                Button("Model transkrypcji…") {
+                    presentOnboarding()
+                }
+                Button("Pobierz ponownie model…") {
+                    Task { await prepareRedownloadOnboarding() }
+                }
+                Divider()
+                Button("Dźwięk systemu (TCC)…") {
+                    PrivacySettings.openSystemAudioRecording()
+                }
+            }
+
+            Divider()
+
+            Button("Zakończ") {
+                transcriptionTask?.cancel()
+                whisperModelStore.cancelDownload()
+                NSApplication.shared.terminate(nil)
             }
         }
-
-        Divider()
-
-        Text(statusMainLine)
-            .font(.caption)
-        Text(statusTranscriptLine)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        Text(modelMenuLine)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-
-        Button("Zakończ") {
-            transcriptionTask?.cancel()
-            whisperModelStore.cancelDownload()
-            NSApplication.shared.terminate(nil)
-        }
+        .onAppear {
+            Task {
+                await whisperModelStore.refreshReadyState()
+                refreshRecordingsList()
+            }
         }
         .task {
             guard !didRunLaunchCheck else { return }
@@ -185,7 +174,6 @@ struct TapScribeApp: App {
             return
         }
         if whisperOnboardingCompleted {
-            // Model missing despite prior completion — prompt again.
             presentOnboarding()
             return
         }
@@ -227,6 +215,7 @@ struct TapScribeApp: App {
             isRecording = true
             lastSessionPath = dir.path
             transcriptionPhase = .idle
+            refreshRecordingsList()
         } catch {
             transcriptionPhase = .failed(message: recordingErrorMessage(for: error))
         }
@@ -240,11 +229,13 @@ struct TapScribeApp: App {
             await whisperModelStore.refreshReadyState()
             guard whisperModelStore.isReady else {
                 transcriptionPhase = .failed(message: "brak modelu — Ustawienia → Model transkrypcji…")
+                refreshRecordingsList()
                 presentOnboarding()
                 return
             }
 
             transcriptionPhase = .running(detail: "przygotowanie…")
+            refreshRecordingsList()
 
             do {
                 try await TranscriptionService.transcribeSession(at: directory) { message in
@@ -257,8 +248,10 @@ struct TapScribeApp: App {
                 refreshRecordingsList()
             } catch is CancellationError {
                 transcriptionPhase = .cancelled
+                refreshRecordingsList()
             } catch {
                 transcriptionPhase = .failed(message: transcriptionErrorMessage(for: error))
+                refreshRecordingsList()
             }
         }
     }
