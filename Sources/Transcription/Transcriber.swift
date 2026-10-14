@@ -11,15 +11,16 @@ enum Transcriber {
         try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
         let modelVariant = await preferredModelVariant()
+        let localFolder = await WhisperModelReadiness.localModelFolder()
         let config = WhisperKitConfig(
             model: modelVariant,
             downloadBase: modelsDirectory,
-            modelFolder: nil,
+            modelFolder: localFolder?.path,
             verbose: false,
             logLevel: .info,
             prewarm: false,
             load: true,
-            download: true,
+            download: localFolder == nil,
             useBackgroundDownloadSession: false
         )
 
