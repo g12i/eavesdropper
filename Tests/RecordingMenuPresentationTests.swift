@@ -27,5 +27,26 @@ final class RecordingMenuPresentationTests: XCTestCase {
         )
         XCTAssertEqual(rows.first?.displayState, .transcribing)
         XCTAssertEqual(rows.first?.trailingStatus, "Transkrypcja…")
+        XCTAssertEqual(rows.first?.statusTone, .working)
+    }
+
+    func testReadyToneForTranscript() {
+        let url = URL(fileURLWithPath: "/tmp/session", isDirectory: true)
+        let entry = RecordingSessionEntry(
+            id: url.path,
+            url: url,
+            folderName: "session",
+            startedAt: Date(),
+            hasTranscript: true
+        )
+        let rows = RecordingMenuPresentation.rows(
+            recent: [entry],
+            activeRecordingDirectory: nil,
+            isRecording: false,
+            lastSessionPath: "/other",
+            transcription: .idle,
+            modelReady: true
+        )
+        XCTAssertEqual(rows.first?.statusTone, .ready)
     }
 }

@@ -59,8 +59,17 @@ struct TapScribeApp: App {
         )
     }
 
-    private var globalStatusLine: String {
-        AppStatusText.compactGlobalStatus(
+    private var globalStatusLabel: String {
+        GlobalStatusPresentation.label(
+            isRecording: isRecording,
+            transcription: transcriptionPhase,
+            modelReady: whisperModelStore.isReady,
+            modelBusy: whisperModelStore.isBusy
+        )
+    }
+
+    private var globalStatusTone: RecordingStatusTone {
+        GlobalStatusPresentation.tone(
             isRecording: isRecording,
             transcription: transcriptionPhase,
             modelReady: whisperModelStore.isReady,
@@ -70,74 +79,40 @@ struct TapScribeApp: App {
 
     var body: some Scene {
         MenuBarExtra("TapScribe", systemImage: isRecording ? "record.circle.fill" : "waveform") {
-            menuContent
-        }
-        .menuBarExtraStyle(.menu)
-    }
-
-    @ViewBuilder
-    private var menuContent: some View {
-        Group {
-            Text(globalStatusLine)
-                .font(.caption)
-
-            Button(isRecording ? "Zakończ nagrywanie" : "Start nagrywania") {
-                Task { await toggleRecording() }
-            }
-
-            Divider()
-
-            if recordingMenuRows.isEmpty {
-                Text("Brak nagrań")
-                    .font(.caption)
-            } else {
-                ForEach(recordingMenuRows) { row in
-                    RecordingMenuRowView(row: row) {
-                        lastSessionPath = row.url.path
-                        RecordingsLocation.openInFinder(sessionDirectory: row.url)
+            TapScribeMenuPanelView(
+                globalStatusLabel: globalStatusLabel,
+                globalStatusTone: globalStatusTone,
+                rows: recordingMenuRows,
+                isRecording: isRecording,
+                onToggleRecording: { Task { await toggleRecording() } },
+                onSelectRow: { row in
+                    lastSessionPath = row.url.path
+                    RecordingsLocation.openInFinder(sessionDirectory: row.url)
+                    refreshRecordingsList()
+                },
+                onShowInFinder: {
+                    RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
+                },
+                onOpenModelSettings: { presentOnboarding() },
+                onRedownloadModel: { Task { await prepareRedownloadOnboarding() } },
+                onOpenSystemAudioSettings: { PrivacySettings.openSystemAudioRecording() },
+                onQuit: {
+                    transcriptionTask?.cancel()
+                    whisperModelStore.cancelDownload()
+                    NSApplication.shared.terminate(nil)
+                },
+                onAppearRefresh: {
+                    Task { @MainActor in
+                        await whisperModelStore.refreshReadyState()
                         refreshRecordingsList()
+                        guard !didRunLaunchCheck else { return }
+                        didRunLaunchCheck = true
+                        await evaluateOnboardingPresentation()
                     }
                 }
-            }
-
-            Divider()
-
-            Button("Pokaż w Finderze") {
-                RecordingsLocation.openInFinder(sessionDirectory: lastSessionURL)
-            }
-
-            Menu("Ustawienia") {
-                Button("Model transkrypcji…") {
-                    presentOnboarding()
-                }
-                Button("Pobierz ponownie model…") {
-                    Task { await prepareRedownloadOnboarding() }
-                }
-                Divider()
-                Button("Dźwięk systemu (TCC)…") {
-                    PrivacySettings.openSystemAudioRecording()
-                }
-            }
-
-            Divider()
-
-            Button("Zakończ") {
-                transcriptionTask?.cancel()
-                whisperModelStore.cancelDownload()
-                NSApplication.shared.terminate(nil)
-            }
+            )
         }
-        .onAppear {
-            Task {
-                await whisperModelStore.refreshReadyState()
-                refreshRecordingsList()
-            }
-        }
-        .task {
-            guard !didRunLaunchCheck else { return }
-            didRunLaunchCheck = true
-            await evaluateOnboardingPresentation()
-        }
+        .menuBarExtraStyle(.window)
     }
 
     @MainActor
@@ -171,10 +146,6 @@ struct TapScribeApp: App {
         await whisperModelStore.refreshReadyState()
         if whisperModelStore.isReady {
             whisperOnboardingCompleted = true
-            return
-        }
-        if whisperOnboardingCompleted {
-            presentOnboarding()
             return
         }
         presentOnboarding()
