@@ -44,7 +44,9 @@ Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja propo
 
 Menu **Wymaga konfiguracji** pokazuje tylko to, czego brakuje: **Zezwól na nagrywanie dźwięku systemu…** (otwiera Ustawienia systemowe) i/lub **Pobierz model transkrypcji (opcjonalnie)…** (w trakcie pobierania: postęp).
 
-Gdy wszystko działa, menu nie pokazuje żadnych przycisków konfiguracji ani naprawy: tylko Start, lista nagrań, **Ustawienia → Otwórz folder nagrań** i Zakończ. Awaryjne **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model) jest schowane w **Ustawienia → Zaawansowane**.
+Gdy wszystko działa, menu nie pokazuje żadnych przycisków konfiguracji ani naprawy: tylko Start, lista nagrań, **Ustawienia** (**Otwórz folder nagrań**, **Uruchamiaj przy logowaniu**) i Zakończ.
+
+**Uruchamiaj przy logowaniu** rejestruje aplikację przez `SMAppService` (to samo co Ustawienia systemowe → Ogólne → Rzeczy otwierane podczas logowania; ptaszek pokazuje faktyczny stan). Rejestrowana jest aplikacja z miejsca, z którego działa (np. `build/Build/Products/Debug/TapScribe.app`) — po przeniesieniu aplikacji włącz opcję ponownie. Jeśli macOS wymaga zatwierdzenia, pozycja ma znak „–” i otwierają się Ustawienia systemowe. Awaryjne **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model) jest schowane w **Ustawienia → Zaawansowane**.
 
 Wielokropek „…” jest tylko przy poleceniach, które otwierają okno lub Ustawienia systemowe (zgodnie z macOS HIG); w statusach („Transkrypcja…”) oznacza trwającą czynność.
 

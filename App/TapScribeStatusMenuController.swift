@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 @MainActor
 final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
@@ -130,6 +131,16 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         let settingsMenu = NSMenu()
         settingsMenu.autoenablesItems = false
         addItem(to: settingsMenu, title: "Otwórz folder nagrań", action: #selector(openRecordingsFolder(_:)))
+        let launchAtLogin = addItem(to: settingsMenu, title: "Uruchamiaj przy logowaniu", action: #selector(toggleLaunchAtLogin(_:)))
+        switch LaunchAtLogin.state {
+        case .enabled:
+            launchAtLogin.state = .on
+        case .requiresApproval:
+            launchAtLogin.state = .mixed
+            launchAtLogin.toolTip = "Wymaga zatwierdzenia w Ustawieniach systemowych → Ogólne → Rzeczy otwierane podczas logowania."
+        case .disabled:
+            launchAtLogin.state = .off
+        }
         let store = app.whisperModelStore
         if store.isReady, !store.isBusy {
             let advanced = NSMenuItem(title: "Zaawansowane", action: nil, keyEquivalent: "")
@@ -279,6 +290,20 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func redownloadModel(_ sender: NSMenuItem) {
         TapScribeApplicationController.shared.prepareRedownloadOnboarding()
+    }
+
+    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        guard let message = LaunchAtLogin.toggle() else { return }
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Nie udało się zmienić uruchamiania przy logowaniu"
+        alert.informativeText = message
+        alert.addButton(withTitle: "Otwórz Ustawienia")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn {
+            SMAppService.openSystemSettingsLoginItems()
+        }
     }
 
     @objc private func openRecordingsFolder(_ sender: NSMenuItem) {
