@@ -23,6 +23,6 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>TapScribe nagrywa dźwięk systemu, żeby go transkrybować.</string>
+	<string>Eavesdropper records system audio to transcribe it.</string>
 </dict>
 </plist>

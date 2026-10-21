@@ -3,8 +3,8 @@ import Foundation
 import OSLog
 
 @MainActor
-final class TapScribeApplicationController: ObservableObject {
-    static let shared = TapScribeApplicationController()
+final class EavesdropperApplicationController: ObservableObject {
+    static let shared = EavesdropperApplicationController()
 
     let whisperModelStore = WhisperModelStore()
 
@@ -17,19 +17,13 @@ final class TapScribeApplicationController: ObservableObject {
 
     /// Per-session transcription phase for this app run, keyed by session folder path.
     @Published private(set) var transcriptionStates: [String: TranscriptionPhase] = [:]
-    private var transcriptionQueue: [URL] = []
-    private var transcriptionTask: Task<Void, Never>?
     private var tickTimer: Timer?
     private var didRunLaunchCheck = false
 
-    private let logger = Logger(subsystem: "com.tapscribe.app", category: "AppController")
+    private let logger = Logger(subsystem: "com.eavesdropper.app", category: "EavesdropperApplicationController")
     private static let onboardingKey = WhisperModelStore.onboardingCompletedKey
 
     private init() {}
-
-    var isTranscribing: Bool {
-        transcriptionTask != nil
-    }
 
     var recordingMenuRows: [RecordingMenuRow] {
         RecordingMenuPresentation.rows(
@@ -61,7 +55,7 @@ final class TapScribeApplicationController: ObservableObject {
             self?.notifyMenuRebuild()
         }
         whisperModelStore.refreshReadyState()
-        TapScribeStatusMenuController.shared.install()
+        EavesdropperStatusMenuController.shared.install()
         startTickTimer()
 
         guard !didRunLaunchCheck else { return }
@@ -70,7 +64,7 @@ final class TapScribeApplicationController: ObservableObject {
     }
 
     func notifyMenuRebuild() {
-        TapScribeStatusMenuController.shared.refresh()
+        EavesdropperStatusMenuController.shared.refresh()
     }
 
     /// Drives the elapsed time in the open menu. Added in `.common` mode so it also fires while the menu is tracking.
@@ -79,7 +73,7 @@ final class TapScribeApplicationController: ObservableObject {
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                if self.isRecording || self.whisperModelStore.isBusy || self.isTranscribing {
+                if self.isRecording || self.whisperModelStore.isBusy {
                     self.notifyMenuRebuild()
                 }
             }
@@ -106,14 +100,12 @@ final class TapScribeApplicationController: ObservableObject {
     }
 
     func prepareRedownloadOnboarding() {
-        guard !isTranscribing else { return }
-
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Pobrać model transkrypcji ponownie?"
-        alert.informativeText = "Obecny model (~1,5 GB) zostanie usunięty. Przyda się, gdy transkrypcja zgłasza błędy modelu. Nagrywanie działa bez modelu."
-        alert.addButton(withTitle: "Usuń i pobierz")
-        alert.addButton(withTitle: "Anuluj")
+        alert.messageText = "Re-download transcription model?"
+        alert.informativeText = "The current model (~1.5 GB) will be deleted. This helps if transcription reports model errors. Recording works without a model."
+        alert.addButton(withTitle: "Delete and Download")
+        alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         whisperModelStore.cancelDownload()
@@ -162,7 +154,6 @@ final class TapScribeApplicationController: ObservableObject {
         do {
             try session.stop()
         } catch {
-            // Teardown errors do not invalidate what was already written to system.caf.
             logger.error("Recording stop reported: \(error.localizedDescription, privacy: .public)")
         }
         isRecording = false
@@ -170,11 +161,7 @@ final class TapScribeApplicationController: ObservableObject {
         activeRecordingDirectory = nil
 
         guard let directory else { return }
-        if SessionRecordingDuration.isTooShortForTranscription(in: directory) {
-            transcriptionStates[directory.path] = .skippedTooShort
-        } else {
-            enqueueTranscription(for: directory)
-        }
+        transcriptionStates[directory.path] = .idle
     }
 
     func openRecordingFolder(_ url: URL) {
@@ -182,7 +169,6 @@ final class TapScribeApplicationController: ObservableObject {
     }
 
     func quit() {
-        transcriptionTask?.cancel()
         whisperModelStore.cancelDownload()
         if isRecording {
             try? session.stop()
@@ -190,55 +176,6 @@ final class TapScribeApplicationController: ObservableObject {
         NSApplication.shared.terminate(nil)
     }
 
-    // MARK: - Transcription
-
-    /// Sessions are transcribed one at a time; a new recording never cancels earlier transcriptions.
-    private func enqueueTranscription(for directory: URL) {
-        transcriptionStates[directory.path] = .queued
-        transcriptionQueue.append(directory)
-        runNextTranscriptionIfIdle()
-    }
-
-    private func runNextTranscriptionIfIdle() {
-        guard transcriptionTask == nil, !transcriptionQueue.isEmpty else { return }
-        let directory = transcriptionQueue.removeFirst()
-        transcriptionTask = Task {
-            await transcribe(directory)
-            transcriptionTask = nil
-            notifyMenuRebuild()
-            runNextTranscriptionIfIdle()
-        }
-    }
-
-    private func transcribe(_ directory: URL) async {
-        let key = directory.path
-        whisperModelStore.refreshReadyState()
-        guard whisperModelStore.isReady, !whisperModelStore.isBusy else {
-            transcriptionStates[key] = .modelMissing
-            return
-        }
-
-        transcriptionStates[key] = .running(detail: "przygotowanie…")
-        notifyMenuRebuild()
-
-        do {
-            try await TranscriptionService.transcribeSession(at: directory) { message in
-                Task { @MainActor in
-                    let controller = TapScribeApplicationController.shared
-                    guard case .running = controller.transcriptionStates[key] else { return }
-                    controller.transcriptionStates[key] = .running(
-                        detail: AppStatusText.polishTranscriptionDetail(from: message)
-                    )
-                }
-            }
-            transcriptionStates[key] = .succeeded
-        } catch is CancellationError {
-            transcriptionStates[key] = .cancelled
-        } catch {
-            transcriptionStates[key] = .failed(message: transcriptionErrorMessage(for: error))
-            logger.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
-        }
-    }
 
     // MARK: - Errors
 
@@ -255,11 +192,11 @@ final class TapScribeApplicationController: ObservableObject {
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Nie udało się rozpocząć nagrywania"
+        alert.messageText = "Failed to start recording"
         alert.informativeText = error.localizedDescription
         if permissionDenied {
-            alert.addButton(withTitle: "Otwórz Ustawienia")
-            alert.addButton(withTitle: "Anuluj")
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "Cancel")
         } else {
             alert.addButton(withTitle: "OK")
         }

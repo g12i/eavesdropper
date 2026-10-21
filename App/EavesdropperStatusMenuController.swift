@@ -2,8 +2,8 @@ import AppKit
 import ServiceManagement
 
 @MainActor
-final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
-    static let shared = TapScribeStatusMenuController()
+final class EavesdropperStatusMenuController: NSObject, NSMenuDelegate {
+    static let shared = EavesdropperStatusMenuController()
 
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
@@ -59,23 +59,23 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
             statusItem.isVisible = true
         }
 
-        let isRecording = TapScribeApplicationController.shared.isRecording
+        let isRecording = EavesdropperApplicationController.shared.isRecording
         guard displayedRecordingState != isRecording else { return }
         displayedRecordingState = isRecording
 
         button.image = Self.statusBarImage(isRecording: isRecording)
-        button.toolTip = isRecording ? "TapScribe — nagrywanie" : "TapScribe"
+        button.toolTip = isRecording ? "Eavesdropper - Recording" : "Eavesdropper"
     }
 
     private static func statusBarImage(isRecording: Bool) -> NSImage? {
         if isRecording {
             let palette = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
                 .applying(statusSymbolConfiguration)
-            let base = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "TapScribe — nagrywanie")
+            let base = NSImage(systemSymbolName: "record.circle", accessibilityDescription: "Eavesdropper - Recording")
             return base?.withSymbolConfiguration(palette) ?? base
         }
 
-        guard let base = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "TapScribe") else {
+        guard let base = NSImage(systemSymbolName: "waveform.circle", accessibilityDescription: "Eavesdropper") else {
             return nil
         }
         let image = base.withSymbolConfiguration(statusSymbolConfiguration) ?? base
@@ -86,7 +86,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     // MARK: - Menu construction
 
     private func rebuildMenu() {
-        let app = TapScribeApplicationController.shared
+        let app = EavesdropperApplicationController.shared
         menu.removeAllItems()
         headerItem = nil
         toggleItem = nil
@@ -109,45 +109,51 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
         let rows = app.recordingMenuRows
         if rows.isEmpty {
-            let empty = NSMenuItem(title: "Brak nagrań", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: "No recordings", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
         } else {
             for row in rows {
-                let item = NSMenuItem(title: "", action: #selector(revealInFinder(_:)), keyEquivalent: "")
+                let item = NSMenuItem(title: "", action: #selector(openTranscriptionDialog(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = row.url
+                item.isEnabled = !row.isRecording
                 configureRow(item, row: row)
                 menu.addItem(item)
                 rowItems.append(item)
+
+                let altItem = NSMenuItem(title: "Show in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "")
+                altItem.target = self
+                altItem.representedObject = row.url
+                altItem.isAlternate = true
+                altItem.keyEquivalentModifierMask = .option
+                menu.addItem(altItem)
             }
             rowIDs = rows.map(\.id)
         }
 
         menu.addItem(.separator())
 
-        // No setup/repair actions here: anything missing lives under "Wymaga konfiguracji".
-        let settings = NSMenuItem(title: "Ustawienia", action: nil, keyEquivalent: "")
+        let settings = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu()
         settingsMenu.autoenablesItems = false
-        addItem(to: settingsMenu, title: "Otwórz folder nagrań", action: #selector(openRecordingsFolder(_:)))
-        let launchAtLogin = addItem(to: settingsMenu, title: "Uruchamiaj przy logowaniu", action: #selector(toggleLaunchAtLogin(_:)))
+        addItem(to: settingsMenu, title: "Open Recordings Folder", action: #selector(openRecordingsFolder(_:)))
+        let launchAtLogin = addItem(to: settingsMenu, title: "Launch at Login", action: #selector(toggleLaunchAtLogin(_:)))
         switch LaunchAtLogin.state {
         case .enabled:
             launchAtLogin.state = .on
         case .requiresApproval:
             launchAtLogin.state = .mixed
-            launchAtLogin.toolTip = "Wymaga zatwierdzenia w Ustawieniach systemowych → Ogólne → Rzeczy otwierane podczas logowania."
+            launchAtLogin.toolTip = "Requires approval in System Settings - General - Login Items."
         case .disabled:
             launchAtLogin.state = .off
         }
         let store = app.whisperModelStore
         if store.isReady, !store.isBusy {
-            let advanced = NSMenuItem(title: "Zaawansowane", action: nil, keyEquivalent: "")
+            let advanced = NSMenuItem(title: "Advanced", action: nil, keyEquivalent: "")
             let advancedMenu = NSMenu()
             advancedMenu.autoenablesItems = false
-            let redownload = addItem(to: advancedMenu, title: "Pobierz ponownie model…", action: #selector(redownloadModel(_:)))
-            redownload.isEnabled = !app.isTranscribing
+            let redownload = addItem(to: advancedMenu, title: "Re-download Model…", action: #selector(redownloadModel(_:)))
             advanced.submenu = advancedMenu
             settingsMenu.addItem(.separator())
             settingsMenu.addItem(advanced)
@@ -155,7 +161,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         settings.submenu = settingsMenu
         menu.addItem(settings)
 
-        let quit = NSMenuItem(title: "Zakończ", action: #selector(quit(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit", action: #selector(quit(_:)), keyEquivalent: "q")
         quit.keyEquivalentModifierMask = .command
         quit.target = self
         menu.addItem(quit)
@@ -170,8 +176,8 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     private func configureToggle(_ item: NSMenuItem, header: MenuHeaderModel) {
-        let app = TapScribeApplicationController.shared
-        item.title = app.isRecording ? "Zakończ nagrywanie" : "Start nagrywania"
+        let app = EavesdropperApplicationController.shared
+        item.title = app.isRecording ? "Stop Recording" : "Start Recording"
         item.isEnabled = !app.isTogglingRecording && (app.isRecording || !header.blocksRecording)
     }
 
@@ -194,7 +200,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
         let configMenu = NSMenu()
         configMenu.autoenablesItems = false
-        let store = TapScribeApplicationController.shared.whisperModelStore
+        let store = EavesdropperApplicationController.shared.whisperModelStore
         for requirement in model.missingRequirements {
             let item = NSMenuItem(title: requirement.menuTitle, action: nil, keyEquivalent: "")
             item.target = self
@@ -225,7 +231,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
     /// Only touches existing items: removing/inserting while the menu tracks is what destabilised AppKit before.
     private func updateOpenMenuInPlace() {
-        let app = TapScribeApplicationController.shared
+        let app = EavesdropperApplicationController.shared
         let headerModel = app.menuHeader
 
         if let headerItem, headerModel.shouldShowInMenu, headerModel.isRecording == headerIsRecording {
@@ -251,7 +257,7 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
         MainActor.assumeIsolated {
             guard menu === self.menu else { return }
-            TapScribeApplicationController.shared.whisperModelStore.refreshReadyState()
+            EavesdropperApplicationController.shared.whisperModelStore.refreshReadyState()
             rebuildMenu()
         }
     }
@@ -275,21 +281,26 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func toggleRecording(_ sender: NSMenuItem) {
         Task {
-            await TapScribeApplicationController.shared.toggleRecording()
+            await EavesdropperApplicationController.shared.toggleRecording()
         }
+    }
+
+    @objc private func openTranscriptionDialog(_ sender: NSMenuItem) {
+        guard let sessionURL = sender.representedObject as? URL else { return }
+        TranscriptionDialogWindowController.showOrFocus(for: sessionURL)
     }
 
     @objc private func revealInFinder(_ sender: NSMenuItem) {
         guard let folderURL = sender.representedObject as? URL else { return }
-        TapScribeApplicationController.shared.openRecordingFolder(folderURL)
+        NSWorkspace.shared.activateFileViewerSelecting([folderURL])
     }
 
     @objc private func openModelSettings(_ sender: NSMenuItem) {
-        TapScribeApplicationController.shared.presentOnboarding()
+        EavesdropperApplicationController.shared.presentOnboarding()
     }
-
+    
     @objc private func redownloadModel(_ sender: NSMenuItem) {
-        TapScribeApplicationController.shared.prepareRedownloadOnboarding()
+        EavesdropperApplicationController.shared.prepareRedownloadOnboarding()
     }
 
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
@@ -297,9 +308,9 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Nie udało się zmienić uruchamiania przy logowaniu"
+        alert.messageText = "Failed to change login item"
         alert.informativeText = message
-        alert.addButton(withTitle: "Otwórz Ustawienia")
+        alert.addButton(withTitle: "Open Settings")
         alert.addButton(withTitle: "OK")
         if alert.runModal() == .alertFirstButtonReturn {
             SMAppService.openSystemSettingsLoginItems()
@@ -315,6 +326,6 @@ final class TapScribeStatusMenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quit(_ sender: NSMenuItem) {
-        TapScribeApplicationController.shared.quit()
+        EavesdropperApplicationController.shared.quit()
     }
 }

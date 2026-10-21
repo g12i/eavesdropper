@@ -18,6 +18,10 @@ struct RecordingMenuRow: Identifiable {
     let trailingStatus: String
     let displayState: RecordingSessionDisplayState
 
+    var isRecording: Bool {
+        displayState == .recording
+    }
+
     var systemImage: String? {
         switch displayState {
         case .recording:
@@ -156,21 +160,21 @@ enum RecordingMenuPresentation {
     private static func trailingStatus(for state: RecordingSessionDisplayState) -> String {
         switch state {
         case .recording:
-            "Nagrywanie…"
+            "Recording…"
         case .audioOnly:
-            "Brak transkryptu"
+            "No transcript"
         case .queued:
-            "W kolejce"
+            "Queued"
         case .transcribing:
-            "Transkrypcja…"
+            "Transcribing…"
         case .transcriptReady:
             ""
         case .error:
-            "Błąd"
+            "Error"
         case .modelMissing:
-            "Brak modelu"
+            "Model missing"
         case .tooShort:
-            "Za krótkie"
+            "Too short"
         }
     }
 

@@ -7,6 +7,8 @@ enum Transcriber {
         return base.appendingPathComponent("TapScribe/Models", isDirectory: true)
     }()
 
+    typealias OnProgress = @Sendable (Double) -> Void
+
     static func makeWhisperKit(onModelState: ModelStateCallback? = nil) async throws -> WhisperKit {
         try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
@@ -25,27 +27,23 @@ enum Transcriber {
         )
 
         let whisperKit = try await WhisperKit(config)
-        // Load after attaching the callback so callers see the loading phase.
         whisperKit.modelStateCallback = onModelState
         try await whisperKit.loadModels()
         return whisperKit
     }
 
     static func transcribe(path: URL) async throws -> [TranscriptSegment] {
+        let language = TranscriptionLanguage.stored
+        let decodeOptions = decodingOptions(for: language)
         let whisperKit = try await makeWhisperKit()
-        let decodeOptions = DecodingOptions(
-            task: .transcribe,
-            language: "pl",
-            wordTimestamps: false,
-            noSpeechThreshold: 0.6
-        )
-        return try await transcribeFile(path, whisperKit: whisperKit, decodeOptions: decodeOptions)
+        return try await transcribeFile(path, whisperKit: whisperKit, decodeOptions: decodeOptions, onProgress: nil)
     }
 
     static func transcribeFile(
         _ path: URL,
         whisperKit: WhisperKit,
-        decodeOptions: DecodingOptions
+        decodeOptions: DecodingOptions,
+        onProgress: OnProgress? = nil
     ) async throws -> [TranscriptSegment] {
         let started = Date()
         let results = await whisperKit.transcribeWithResults(
@@ -62,7 +60,37 @@ enum Transcriber {
         case let .success(transcriptions):
             let elapsed = Date().timeIntervalSince(started)
             fputs("Transcription finished in \(String(format: "%.1f", elapsed))s\n", stderr)
+            onProgress?(1.0)
             return mapSegments(transcriptions)
+        }
+    }
+
+    static func decodingOptions(for language: TranscriptionLanguage) -> DecodingOptions {
+        switch language {
+        case .polish:
+            DecodingOptions(
+                task: .transcribe,
+                language: "pl",
+                detectLanguage: false,
+                wordTimestamps: false,
+                noSpeechThreshold: 0.6
+            )
+        case .english:
+            DecodingOptions(
+                task: .transcribe,
+                language: "en",
+                detectLanguage: false,
+                wordTimestamps: false,
+                noSpeechThreshold: 0.6
+            )
+        case .auto:
+            DecodingOptions(
+                task: .transcribe,
+                language: nil,
+                detectLanguage: true,
+                wordTimestamps: false,
+                noSpeechThreshold: 0.6
+            )
         }
     }
 
@@ -81,7 +109,6 @@ enum Transcriber {
         if let pinned = pinnedModelVariant {
             return pinned
         }
-        // Folder names in argmaxinc/whisperkit-coreml are the variant names.
         if let local = WhisperModelReadiness.localModelFolder() {
             let variant = local.lastPathComponent
             UserDefaults.standard.set(variant, forKey: modelVariantKey)

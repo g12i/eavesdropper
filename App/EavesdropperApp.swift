@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-enum TapScribeMain {
+enum EavesdropperMain {
     static func main() {
         let args = CommandLine.arguments
         if args.contains("--probe-capture") || args.contains("--headless") || args.contains("--transcribe") {
@@ -24,7 +24,7 @@ enum TapScribeMain {
     }
 
     /// `NSApplication.delegate` is weak; this keeps the delegate alive for the app's lifetime.
-    private static let appDelegate = TapScribeAppDelegate()
+    private static let appDelegate = EavesdropperAppDelegate()
 
     private static func runMenuBarApplication() {
         let app = NSApplication.shared
