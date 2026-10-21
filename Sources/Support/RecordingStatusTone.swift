@@ -17,7 +17,7 @@ extension RecordingSessionDisplayState {
             .error
         case .transcriptReady:
             .ready
-        case .audioOnly, .tooShort:
+        case .audioOnly:
             .noTranscript
         }
     }

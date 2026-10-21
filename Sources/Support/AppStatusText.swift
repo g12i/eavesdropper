@@ -8,7 +8,6 @@ enum TranscriptionPhase: Equatable {
     case failed(message: String)
     case modelMissing
     case cancelled
-    case skippedTooShort
 
     var isActive: Bool {
         switch self {

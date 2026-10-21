@@ -8,7 +8,6 @@ enum RecordingSessionDisplayState: Equatable {
     case transcriptReady
     case error
     case modelMissing
-    case tooShort
 }
 
 struct RecordingMenuRow: Identifiable {
@@ -38,8 +37,6 @@ struct RecordingMenuRow: Identifiable {
             "xmark.circle"
         case .modelMissing:
             "exclamationmark.triangle"
-        case .tooShort:
-            "clock"
         }
     }
 
@@ -142,17 +139,12 @@ enum RecordingMenuPresentation {
             return modelReady ? .error : .modelMissing
         case .succeeded:
             return entry.hasTranscript ? .transcriptReady : .error
-        case .skippedTooShort:
-            return .tooShort
         case .cancelled, .idle, nil:
             break
         }
 
         if entry.hasTranscript {
             return .transcriptReady
-        }
-        if SessionRecordingDuration.isTooShortForTranscription(in: entry.url) {
-            return .tooShort
         }
         return .audioOnly
     }
@@ -173,8 +165,6 @@ enum RecordingMenuPresentation {
             "Error"
         case .modelMissing:
             "Model missing"
-        case .tooShort:
-            "Too short"
         }
     }
 

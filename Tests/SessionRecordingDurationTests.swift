@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import TapScribe
+@testable import Eavesdropper
 
 final class SessionRecordingDurationTests: XCTestCase {
     private var directory: URL!
@@ -33,10 +33,16 @@ final class SessionRecordingDurationTests: XCTestCase {
         try writeSilence(seconds: 2)
         let seconds = try XCTUnwrap(SessionRecordingDuration.durationSeconds(in: directory))
         XCTAssertEqual(seconds, 2, accuracy: 0.01)
+    }
+
+    func testReadsDurationShortRecording() throws {
+        try writeSilence(seconds: 30)
+        let seconds = try XCTUnwrap(SessionRecordingDuration.durationSeconds(in: directory))
+        XCTAssertEqual(seconds, 30, accuracy: 0.01)
         XCTAssertTrue(SessionRecordingDuration.isTooShortForTranscription(in: directory))
     }
 
-    func testMissingFileIsNotTooShort() {
+    func testMissingFileReturnsNil() {
         XCTAssertNil(SessionRecordingDuration.durationSeconds(in: directory))
         XCTAssertFalse(SessionRecordingDuration.isTooShortForTranscription(in: directory))
     }

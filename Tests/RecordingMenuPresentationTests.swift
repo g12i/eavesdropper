@@ -1,10 +1,10 @@
 import XCTest
-@testable import TapScribe
+@testable import Eavesdropper
 
 final class RecordingMenuPresentationTests: XCTestCase {
     func testInlineMenuLineFormat() {
-        let line = RecordingMenuPresentation.inlineMenuLine(title: "14.10 o 14:27", status: "Transkrypcja…")
-        XCTAssertEqual(line, "14.10 o 14:27 · Transkrypcja…")
+        let line = RecordingMenuPresentation.inlineMenuLine(title: "Oct 14, 2:27 PM", status: "Transcribing…")
+        XCTAssertEqual(line, "Oct 14, 2:27 PM · Transcribing…")
     }
 
     func testTranscriptReadyOmitsStatusText() {
@@ -45,7 +45,7 @@ final class RecordingMenuPresentationTests: XCTestCase {
             modelReady: true
         )
         XCTAssertEqual(rows.first?.displayState, .transcribing)
-        XCTAssertEqual(rows.first?.trailingStatus, "Transkrypcja…")
+        XCTAssertEqual(rows.first?.trailingStatus, "Transcribing…")
         XCTAssertEqual(rows.first?.statusTone, .working)
     }
 
@@ -107,7 +107,7 @@ final class RecordingMenuPresentationTests: XCTestCase {
             modelReady: true
         )
         XCTAssertEqual(rows.first?.displayState, .queued)
-        XCTAssertEqual(rows.first?.trailingStatus, "W kolejce")
+        XCTAssertEqual(rows.first?.trailingStatus, "Queued")
         XCTAssertEqual(rows.first?.statusTone, .working)
     }
 }

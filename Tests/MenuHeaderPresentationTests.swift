@@ -1,5 +1,5 @@
 import XCTest
-@testable import TapScribe
+@testable import Eavesdropper
 
 final class MenuHeaderPresentationTests: XCTestCase {
     func testReadyWhenConfigured() {

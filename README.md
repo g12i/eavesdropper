@@ -1,74 +1,131 @@
-# TapScribe (audio-in-the-middle)
+# Eavesdropper
 
-Aplikacja w pasku menu dla macOS 14.4+ nagrywająca **dźwięk systemu** (process tap Core Audio) i po zatrzymaniu transkrybująca lokalnie przez WhisperKit (język polski).
+A macOS 14.4+ menu bar app that records **system audio** (process tap via Core Audio) and transcribes it on-demand using WhisperKit with local language models.
 
-## M1 workflow (local git only)
+## What It Does
 
-Repozytorium na M1 Pro to **tylko lokalny git** (bez remote). **Nie** używaj `git pull` / `git fetch`.
+- **Records system audio** to a session folder when you click "Start Recording"
+- **On-demand transcription** - choose language (Polish/English/Auto) in a dialog after recording stops
+- **Manual transcription queue** - transcriptions run one at a time, in FIFO order
+- **No automatic transcription** - you control when to transcribe each recording
+- **Supports multiple languages** via language selector (auto-detect available)
+- **Optional launch at login** (via macOS System Settings)
 
-1. Agent Cursor commituje na **`main`** na tej samej maszynie.
-2. Ty budujesz aplikację:
+## Requirements
 
-   ```bash
-   cd ~/Projects/personal/audio-in-the-middle
-   ./scripts/build.sh
-   ```
+- **macOS 14.4+** (Sonoma or later)
+- **Apple Silicon** (M1, M2, M3, etc.) — Intel support untested
+- **~1.5 GB free space** for the Whisper model (downloaded on first use)
+- **System audio recording permission** (granted on first use)
 
-3. Opcjonalnie: `git log -1 --oneline`
-
-Szczegóły: [docs/workflow-m1.md](docs/workflow-m1.md).
-
-## Gdzie są nagrania
-
-Każda sesja to folder:
-
-`~/Recordings/<YYYY-MM-DD_HH-mm-ss>/`
-
-Pliki: **`system.caf`**, po transkrypcji **`transcript.txt`** i **`transcript.srt`**.
-
-W menu paska systemowego (natywne **NSMenu**, jak Rectangle/Cursor): **Start nagrywania**, lista ostatnich sesji (klik → folder w Finderze), Ustawienia. Nagrania krótsze niż 60 s nie są transkrybowane (status „Za krótkie”).
-
-Podczas nagrywania ikona w pasku zmienia się na czerwoną, a czas nagrania widać w nagłówku menu. Ikona ma stałą szerokość — macOS ukrywa elementy paska, które przestają się mieścić obok notcha. Transkrypcje idą po kolei w tle; nowe nagranie nie przerywa transkrypcji poprzedniego („W kolejce” / „Transkrypcja…”).
-
-## Dźwięk wyjściowy (nie BlackHole)
-
-TapScribe **nie** pojawia się w **Ustawienia systemowe → Dźwięk → Wyjście**. Podczas nagrywania używa prywatnego urządzenia agregującego; odtwarzanie zostaje na głośnikach / słuchawkach.
-
-## Uprawnienia (TCC)
-
-Przy **Start nagrywania** (bez modelu Whisper):
-
-1. Zgoda na **nagrywanie dźwięku systemu** → `system.caf`.
-
-Transkrypcja **po Stop**, w tle. Przy **pierwszym uruchomieniu** aplikacja proponuje jednorazowe pobranie modelu Whisper (~1,5 GB). Nagrywanie działa od razu, także bez modelu — **Start nagrywania** jest wyłączony tylko przy braku zgody na dźwięk systemu. Bez modelu menu pokazuje „Wymaga konfiguracji → Pobierz model Whisper”, a nagrania po Stop mają status „Brak modelu” (bez transkryptu).
-
-Menu **Wymaga konfiguracji** pokazuje tylko to, czego brakuje: **Zezwól na nagrywanie dźwięku systemu…** (otwiera Ustawienia systemowe) i/lub **Pobierz model transkrypcji (opcjonalnie)…** (w trakcie pobierania: postęp).
-
-Gdy wszystko działa, menu nie pokazuje żadnych przycisków konfiguracji ani naprawy: tylko Start, lista nagrań, **Ustawienia** (**Otwórz folder nagrań**, **Uruchamiaj przy logowaniu**) i Zakończ.
-
-**Uruchamiaj przy logowaniu** rejestruje aplikację przez `SMAppService` (to samo co Ustawienia systemowe → Ogólne → Rzeczy otwierane podczas logowania; ptaszek pokazuje faktyczny stan). Rejestrowana jest aplikacja z miejsca, z którego działa (np. `build/Build/Products/Debug/TapScribe.app`) — po przeniesieniu aplikacji włącz opcję ponownie. Jeśli macOS wymaga zatwierdzenia, pozycja ma znak „–” i otwierają się Ustawienia systemowe. Awaryjne **Pobierz ponownie model…** (z potwierdzeniem; usuwa obecny model) jest schowane w **Ustawienia → Zaawansowane**.
-
-Wielokropek „…” jest tylko przy poleceniach, które otwierają okno lub Ustawienia systemowe (zgodnie z macOS HIG); w statusach („Transkrypcja…”) oznacza trwającą czynność.
-
-### Podpis i bundle ID
-
-TCC pamięta **bundle ID + podpis**. Stały ID: `com.tapscribe.app`. Dla trwałych zgód: podpis **Apple Development** i `DEVELOPMENT_TEAM` przy `./scripts/build.sh`.
-
-## Diagnostyka
+## How to Build
 
 ```bash
-APP=build/Build/Products/Debug/TapScribe.app/Contents/MacOS/TapScribe
+./scripts/build.sh
+```
+
+Builds to `build/Build/Products/Debug/Eavesdropper.app`.
+
+Optional prerequisites check:
+```bash
+./scripts/check-prerequisites.sh
+```
+
+## Recordings Location
+
+Each recording session is a folder:
+
+```
+~/Recordings/<YYYY-MM-DD_HH-mm-ss>/
+```
+
+Files per session:
+- **`system.caf`** - raw audio
+- **`transcript.txt`** - transcribed text (after transcription)
+- **`transcript.srt`** - SRT subtitle file (after transcription)
+- **`transcription.json`** - metadata (language, model, timestamps)
+
+## How to Use
+
+1. **Start Recording** - appears in the menu bar
+   - First use: grant system audio permission (one-time TCC dialog)
+   - First transcription: download model (~1.5 GB) on demand in the transcription dialog
+
+2. **Stop Recording** - session appears in the menu with "No transcript"
+
+3. **Open Transcription Dialog** - click the session row in the menu
+   - Choose language: Polish / English / Auto
+   - Warning if recording is <60s (but you can still transcribe)
+   - Click **Transcribe** to start
+   - Watch progress bar or close the window (transcription continues in background)
+
+4. **Alternate menu item** - Option-click a session row to open it in Finder
+
+5. **Settings**:
+   - Open Recordings Folder
+   - Launch at Login
+   - Re-download Model (Advanced)
+
+6. **Quit** - stops active recording and transcription
+
+## Menu Bar Behavior
+
+The status icon changes:
+- **Waveform (light)** - idle
+- **Red circle** - recording in progress
+- Time elapsed shown in menu header during recording
+
+Session rows show status:
+- **Recording…** - currently recording
+- **No transcript** - idle, no transcript yet
+- **Queued** - waiting for transcription
+- **Transcribing…** - currently transcribing (with %)
+- **Error** - transcription failed
+- **Model missing** - model not downloaded
+
+## Permissions (TCC)
+
+- **System audio recording** - granted once, stored by bundle ID + signature
+- Bundle ID: `com.eavesdropper.app`
+- To retain permissions after moving the app, re-enable "Launch at Login"
+
+## Model Download
+
+First transcription triggers a one-time download of the Whisper model (~1.5 GB).
+- Download UI in the transcription dialog shows progress
+- Recording works without the model
+- Transcription is unavailable until model is ready
+
+## Disk Space
+
+- **Typical:** ~8 GB free space (for model + recordings)
+- **Build:** Xcode requires ~15–20 GB one-time
+
+## Architecture
+
+- **Single transcriber worker** - transcriptions run sequentially (no parallelism)
+- **Per-session state machine** - idle → queued → loadingModel → transcribing → done
+- **Language persistence** - last chosen language saved to UserDefaults
+- **Atomic file writes** - prevents partial transcripts on error
+
+## Troubleshooting
+
+Diagnose audio capture:
+```bash
+APP=build/Build/Products/Debug/Eavesdropper.app/Contents/MacOS/Eavesdropper
 "$APP" --probe-capture
 ```
 
-## Miejsce na dysku
-
-- **Na co dzień:** ~**8 GB** wolnego (`scripts/check-prerequisites.sh`).
-- Jednorazowo Xcode: ~15–20 GB.
-
-## Build
-
+Transcribe via CLI (for testing):
 ```bash
-./scripts/check-prerequisites.sh
-./scripts/build.sh
+"$APP" --transcribe /path/to/audio.caf --language pl
+"$APP" --transcribe /path/to/audio.caf --language en
+"$APP" --transcribe /path/to/audio.caf --language auto
 ```
+
+## Development Notes
+
+- No network after model download - transcription is fully local
+- Recordings shorter than 60s show a dialog warning (but can still be transcribed)
+- Inactive app uses `.accessory` activation policy (no dock icon)
+- Dialog shows window when transcribing; close it to continue in background
