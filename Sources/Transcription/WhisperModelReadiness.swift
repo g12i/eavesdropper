@@ -6,12 +6,23 @@ enum WhisperModelReadiness {
 
     /// Finds a folder under `Transcriber.modelsDirectory` that contains Whisper Core ML weights.
     /// Filesystem only (no network), cheap enough to call on the main thread when the menu opens.
+    /// Falls back to legacy `TapScribe/Models` path for one-time migration.
     static func localModelFolder() -> URL? {
         let base = Transcriber.modelsDirectory
-        guard FileManager.default.fileExists(atPath: base.path) else {
-            return nil
+        if FileManager.default.fileExists(atPath: base.path) {
+            if let found = folderContainingMelSpectrogram(startingAt: base, preferNameContains: Transcriber.pinnedModelVariant) {
+                return found
+            }
         }
-        return folderContainingMelSpectrogram(startingAt: base, preferNameContains: Transcriber.pinnedModelVariant)
+        
+        // Fallback: check legacy TapScribe path
+        let legacyBase = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("TapScribe/Models", isDirectory: true)
+        if FileManager.default.fileExists(atPath: legacyBase.path) {
+            return folderContainingMelSpectrogram(startingAt: legacyBase, preferNameContains: Transcriber.pinnedModelVariant)
+        }
+        
+        return nil
     }
 
     static func isModelPresentOnDisk() -> Bool {

@@ -20,18 +20,18 @@ enum TranscriptionPhase: Equatable {
 }
 
 enum AppStatusText {
-    static func polishTranscriptionDetail(from statusMessage: String) -> String {
-        if statusMessage.contains("pobieranie modelu") {
-            return "pobieranie modelu…"
+    static func transcriptionDetail(from statusMessage: String) -> String {
+        if statusMessage.contains("Download") {
+            return "downloading model…"
         }
-        if statusMessage.contains("ładowanie modelu") {
-            return "ładowanie modelu…"
+        if statusMessage.contains("Load") {
+            return "loading model…"
         }
-        if statusMessage.contains("rozpoznawanie") || statusMessage.contains("dźwięk systemu") {
-            return "rozpoznawanie mowy…"
+        if statusMessage.contains("Transcrib") {
+            return "transcribing…"
         }
-        if statusMessage.hasPrefix("Transkrypcja:") {
-            return String(statusMessage.dropFirst("Transkrypcja:".count)).trimmingCharacters(in: .whitespaces)
+        if statusMessage.hasPrefix("Transcription:") {
+            return String(statusMessage.dropFirst("Transcription:".count)).trimmingCharacters(in: .whitespaces)
         }
         return statusMessage
     }

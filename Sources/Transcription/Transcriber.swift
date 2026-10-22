@@ -4,7 +4,7 @@ import WhisperKit
 enum Transcriber {
     static let modelsDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return base.appendingPathComponent("TapScribe/Models", isDirectory: true)
+        return base.appendingPathComponent("Eavesdropper/Models", isDirectory: true)
     }()
 
     typealias OnProgress = @Sendable (Double) -> Void
@@ -145,11 +145,11 @@ enum TranscriberError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyResult:
-            "Brak wyniku transkrypcji."
+            "No transcription result."
         case .noAudioFiles:
-            "Brak pliku system.caf do transkrypcji."
+            "No system.caf file to transcribe."
         case let .whisperFailed(detail):
-            "Transkrypcja nie powiodła się: \(detail)"
+            "Transcription failed: \(detail)"
         }
     }
 }

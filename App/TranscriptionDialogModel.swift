@@ -14,12 +14,13 @@ final class TranscriptionDialogModel: ObservableObject {
 
     private let sessionURL: URL
     private let service = TranscriptionService.shared
-    private let modelStore = WhisperModelStore()
+    private let modelStore: WhisperModelStore
     private let logger = Logger(subsystem: "com.eavesdropper.app", category: "TranscriptionDialog")
     private var refreshTimer: Timer?
 
-    init(sessionURL: URL) {
+    init(sessionURL: URL, modelStore: WhisperModelStore = EavesdropperApplicationController.shared.whisperModelStore) {
         self.sessionURL = sessionURL
+        self.modelStore = modelStore
         self.state = service.state(for: sessionURL)
         self.selectedLanguage = TranscriptionLanguage.stored
         self.isModelReady = modelStore.isReady
@@ -27,6 +28,7 @@ final class TranscriptionDialogModel: ObservableObject {
 
         loadAudioDuration()
         startRefreshTimer()
+        modelStore.refreshReadyState()
     }
 
     private func startRefreshTimer() {

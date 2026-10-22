@@ -28,6 +28,14 @@ enum SessionTranscriptionState: Equatable, Sendable {
             false
         }
     }
+
+    var isDone: Bool {
+        if case .done = self {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 struct TranscriptionTask: Sendable {

@@ -15,9 +15,9 @@ struct TranscriptionDialog: View {
                         shortWarningSection
                     }
 
-                    if !model.isModelReady {
+                    if !model.isModelReady && !model.state.isDone {
                         modelMissingSection
-                    } else {
+                    } else if !model.state.isDone {
                         languagePickerSection
                     }
 

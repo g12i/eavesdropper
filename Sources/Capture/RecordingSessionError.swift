@@ -10,9 +10,9 @@ enum RecordingSessionError: LocalizedError {
                 return sys.errorDescription
             }
             if let core = underlying as? CoreAudioError {
-                return "Dźwięk systemu: \(core.errorDescription ?? underlying.localizedDescription)"
+                return "System audio: \(core.errorDescription ?? underlying.localizedDescription)"
             }
-            return "Dźwięk systemu: \(underlying.localizedDescription)"
+            return "System audio: \(underlying.localizedDescription)"
         }
     }
 }

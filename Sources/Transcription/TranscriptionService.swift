@@ -179,7 +179,7 @@ final class TranscriptionService: ObservableObject {
             if transcriptExists {
                 states[key] = .done(detectedLanguage: nil)
             } else if let failedData = readTranscriptionMetadata(from: entry.url), failedData["status"] == "failed" {
-                states[key] = .failed(message: failedData["message"] ?? "Błąd transkrypcji.")
+                states[key] = .failed(message: failedData["message"] ?? "Transcription error.")
             } else {
                 states[key] = .idle(hasTranscript: false)
             }

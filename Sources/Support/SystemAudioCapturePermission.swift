@@ -82,9 +82,9 @@ enum SystemAudioCaptureError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .denied:
-            "Brak zgody na nagrywanie dźwięku systemu. Włącz TapScribe w Ustawienia → Prywatność → Nagrywanie dźwięku systemu."
+            "System audio recording permission denied. Enable in Settings → Privacy → System Audio Recording."
         case let .tapFailed(code):
-            "Nie udało się uruchomić przechwytywania dźwięku systemu (kod \(code))."
+            "Failed to start system audio capture (code \(code))."
         }
     }
 }

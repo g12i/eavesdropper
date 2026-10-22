@@ -6,19 +6,18 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("TapScribe — model transkrypcji")
+            Text("Transcription Model")
                 .font(.title2.bold())
 
             Text(
                 """
-                Po zatrzymaniu nagrania TapScribe tworzy transkrypt po polsku (Whisper). \
-                Do tego potrzebny jest jednorazowy download modelu (~1,5 GB) w folderze \
-                Application Support.
+                After stopping a recording, Eavesdropper creates a transcript using Whisper. \
+                This requires a one-time model download (~1.5 GB) to the Application Support folder.
                 """
             )
             .fixedSize(horizontal: false, vertical: true)
 
-            Text("Nagrywanie dźwięku systemu (YouTube, rozmowy) nie wymaga modelu.")
+            Text("System audio recording (YouTube, calls) works immediately without the model.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -46,21 +45,21 @@ struct OnboardingView: View {
 
             HStack {
                 if modelStore.isReady {
-                    Button("Kontynuuj") {
+                    Button("Continue") {
                         onFinished()
                     }
                     .keyboardShortcut(.defaultAction)
                 } else if modelStore.isBusy {
-                    Button(modelStore.isLoadingModel ? "Anuluj" : "Anuluj pobieranie") {
+                    Button(modelStore.isLoadingModel ? "Cancel" : "Cancel Download") {
                         modelStore.cancelDownload()
                     }
                 } else {
-                    Button("Pobierz model") {
+                    Button("Download Model") {
                         modelStore.startDownload(forceRedownload: false)
                     }
                     .keyboardShortcut(.defaultAction)
 
-                    Button("Później") {
+                    Button("Later") {
                         onFinished()
                     }
                 }

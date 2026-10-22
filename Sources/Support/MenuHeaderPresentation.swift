@@ -3,18 +3,18 @@ import Foundation
 enum ConfigurationRequirement: Equatable {
     case systemAudioPermission
     case whisperModel
-    /// Download or first load in progress; the menu shows live status instead of "Pobierz".
+    /// Download or first load in progress; the menu shows live status instead of "Download".
     case whisperModelPreparing
 
     /// Ellipsis per HIG: these open System Settings or the model window.
     var menuTitle: String {
         switch self {
         case .systemAudioPermission:
-            "Zezwól na nagrywanie dźwięku systemu…"
+            "Enable system audio recording…"
         case .whisperModel:
-            "Pobierz model transkrypcji (opcjonalnie)…"
+            "Download transcription model (optional)…"
         case .whisperModelPreparing:
-            "Pobieranie modelu…"
+            "Downloading model…"
         }
     }
 
@@ -83,7 +83,7 @@ enum MenuHeaderPresentation {
             return MenuHeaderModel(title: "", tone: .ready, missingRequirements: [], isRecording: false)
         }
         return MenuHeaderModel(
-            title: "Wymaga konfiguracji",
+            title: "Setup required",
             tone: .configuration,
             missingRequirements: missing,
             isRecording: false

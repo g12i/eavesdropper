@@ -8,7 +8,7 @@ final class WhisperModelStore: ObservableObject {
     @Published private(set) var isBusy = false
     /// True after files are on disk while WhisperKit compiles/loads the model (can take minutes on first run).
     @Published private(set) var isLoadingModel = false
-    @Published var statusLine = "Sprawdzanie modelu…"
+    @Published var statusLine = "Checking model…"
     @Published var detailLine = ""
     @Published var downloadFraction: Double?
 
@@ -24,12 +24,12 @@ final class WhisperModelStore: ObservableObject {
         guard !isBusy else { return }
         isReady = WhisperModelReadiness.isModelPresentOnDisk()
         if isReady {
-            statusLine = "Model transkrypcji jest gotowy."
+            statusLine = "Transcription model ready."
             detailLine = ""
             downloadFraction = nil
         } else {
-            statusLine = "Transkrypcja wymaga pobrania modelu (~1,5 GB)."
-            detailLine = "Nagrywanie dźwięku systemu działa od razu; transkrypt pojawi się po pobraniu modelu."
+            statusLine = "Transcription requires model download (~1.5 GB)."
+            detailLine = "System audio recording works immediately; transcripts appear after model downloads."
         }
     }
 
@@ -43,7 +43,7 @@ final class WhisperModelStore: ObservableObject {
         isReady = false
         isLoadingModel = false
         downloadFraction = nil
-        statusLine = forceRedownload ? "Usuwanie starego modelu…" : "Przygotowanie pobierania…"
+        statusLine = forceRedownload ? "Removing old model…" : "Preparing download…"
         detailLine = ""
         onReadyStateChanged?()
 
@@ -73,19 +73,19 @@ final class WhisperModelStore: ObservableObject {
                 guard generation == downloadGeneration else { return }
                 isReady = true
                 finishDownload()
-                statusLine = "Model gotowy. Możesz nagrywać i transkrybować."
+                statusLine = "Model ready. You can record and transcribe."
                 detailLine = ""
                 UserDefaults.standard.set(true, forKey: Self.onboardingCompletedKey)
             } catch is CancellationError {
                 guard generation == downloadGeneration else { return }
                 finishDownload()
                 refreshReadyState()
-                statusLine = "Pobieranie anulowane."
+                statusLine = "Download cancelled."
             } catch {
                 guard generation == downloadGeneration else { return }
                 finishDownload()
                 isReady = false
-                statusLine = "Nie udało się pobrać modelu."
+                statusLine = "Failed to download model."
                 detailLine = error.localizedDescription
             }
             onReadyStateChanged?()
@@ -99,7 +99,7 @@ final class WhisperModelStore: ObservableObject {
         downloadGeneration += 1
         finishDownload()
         refreshReadyState()
-        statusLine = "Pobieranie anulowane."
+        statusLine = "Download cancelled."
         onReadyStateChanged?()
     }
 
@@ -113,8 +113,8 @@ final class WhisperModelStore: ObservableObject {
         guard generation == downloadGeneration, isBusy, !isLoadingModel else { return }
         let fraction = min(max(progress.fractionCompleted, 0), 1)
         downloadFraction = fraction
-        statusLine = "Pobieranie modelu… \(Int(fraction * 100))%"
-        detailLine = polishProgressDetail(progress)
+        statusLine = "Downloading model… \(Int(fraction * 100))%"
+        detailLine = progressDetail(progress)
         onReadyStateChanged?()
     }
 
@@ -122,8 +122,8 @@ final class WhisperModelStore: ObservableObject {
         guard generation == downloadGeneration, isBusy, !isLoadingModel else { return }
         isLoadingModel = true
         downloadFraction = nil
-        statusLine = "Pliki pobrane. Ładowanie modelu…"
-        detailLine = "Pierwsze ładowanie optymalizuje model pod ten Mac i może potrwać kilka minut."
+        statusLine = "Files downloaded. Loading model…"
+        detailLine = "First load optimizes the model for this Mac and may take several minutes."
         onReadyStateChanged?()
     }
 
@@ -132,20 +132,20 @@ final class WhisperModelStore: ObservableObject {
         switch state {
         case .loading, .prewarming, .prewarmed:
             enterLoadingPhase(generation: generation)
-            statusLine = "Ładowanie modelu do pamięci…"
+            statusLine = "Loading model into memory…"
         case .downloading, .downloaded, .loaded, .unloading, .unloaded:
             break
         }
     }
 
-    private func polishProgressDetail(_ progress: Progress) -> String {
+    private func progressDetail(_ progress: Progress) -> String {
         if let file = progress.fileURL?.lastPathComponent, !file.isEmpty {
             return file
         }
         if progress.totalUnitCount > 0 {
             // Hub snapshot progress counts files, not bytes.
-            return "Plik \(progress.completedUnitCount) z \(progress.totalUnitCount)"
+            return "File \(progress.completedUnitCount) of \(progress.totalUnitCount)"
         }
-        return "Trwa pobieranie…"
+        return "Downloading…"
     }
 }
