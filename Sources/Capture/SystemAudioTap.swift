@@ -1,8 +1,10 @@
 import AVFoundation
 import AudioToolbox
 import Foundation
+import OSLog
 
 final class SystemAudioTap {
+    private static let logger = Logger(subsystem: "com.tapscribe.app", category: "SystemAudioTap")
     private var processTapID: AudioObjectID = .unknown
     private var aggregateDeviceID: AudioObjectID = .unknown
     private var deviceProcID: AudioDeviceIOProcID?
@@ -59,7 +61,10 @@ final class SystemAudioTap {
         }
         aggregateDeviceID = aggregateID
 
-        var streamDescription = try tapID.readAudioTapStreamBasicDescription()
+        var streamDescription = try Self.captureStreamDescription(
+            tapID: tapID,
+            aggregateDeviceID: aggregateID
+        )
         guard let format = AVAudioFormat(streamDescription: &streamDescription) else {
             try? stop()
             throw CoreAudioError(message: "Failed to create AVAudioFormat from tap")
@@ -145,6 +150,38 @@ final class SystemAudioTap {
             }
             processTapID = .unknown
         }
+    }
+
+    /// Tap ASBD can report a different rate than the aggregate IO proc (e.g. 48 kHz vs 44.1 kHz on built-in output).
+    /// File metadata and PCM buffers must follow the aggregate device's input stream clock.
+    private static func captureStreamDescription(
+        tapID: AudioObjectID,
+        aggregateDeviceID: AudioObjectID
+    ) throws -> AudioStreamBasicDescription {
+        var tapDescription = try tapID.readAudioTapStreamBasicDescription()
+        let tapRate = tapDescription.mSampleRate
+
+        let aggregateInput = try aggregateDeviceID.readDeviceStreamBasicDescription(
+            scope: kAudioObjectPropertyScopeInput
+        )
+        if aggregateInput.mSampleRate > 0, aggregateInput.mChannelsPerFrame > 0 {
+            if abs(aggregateInput.mSampleRate - tapRate) > 1 {
+                logger.info(
+                    "Using aggregate input rate \(aggregateInput.mSampleRate, privacy: .public) Hz (tap reported \(tapRate, privacy: .public) Hz)"
+                )
+            }
+            return aggregateInput
+        }
+
+        let nominalRate = try aggregateDeviceID.readNominalSampleRate()
+        if nominalRate > 0, abs(nominalRate - tapRate) > 1 {
+            logger.info(
+                "Using aggregate nominal rate \(nominalRate, privacy: .public) Hz (tap reported \(tapRate, privacy: .public) Hz)"
+            )
+            tapDescription.mSampleRate = nominalRate
+        }
+
+        return tapDescription
     }
 
     deinit {

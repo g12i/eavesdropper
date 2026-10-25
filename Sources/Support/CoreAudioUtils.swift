@@ -116,6 +116,19 @@ extension AudioObjectID {
         try read(kAudioTapPropertyFormat, defaultValue: AudioStreamBasicDescription())
     }
 
+    /// Reads `kAudioDevicePropertyNominalSampleRate` (aggregate / device clock).
+    func readNominalSampleRate() throws -> Double {
+        let rate: Float64 = try read(kAudioDevicePropertyNominalSampleRate, defaultValue: 0)
+        return Double(rate)
+    }
+
+    /// Reads `kAudioDevicePropertyStreamFormat` for the given scope (typically input on an aggregate device).
+    func readDeviceStreamBasicDescription(
+        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeInput
+    ) throws -> AudioStreamBasicDescription {
+        try read(kAudioDevicePropertyStreamFormat, scope: scope, defaultValue: AudioStreamBasicDescription())
+    }
+
     private func requireSystemObject() throws {
         if self != .system { throw "Only supported for the system object." }
     }
