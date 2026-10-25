@@ -26,6 +26,8 @@ A macOS 14.4+ menu bar app that records **system audio** (process tap via Core A
 
 Builds to `build/Build/Products/Debug/Eavesdropper.app`.
 
+Package versions are pinned in `Eavesdropper.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` and the build never re-resolves them. Keep them compatible with the oldest Xcode in use (16.2 / Swift 6.0 on the M1): don't run "Update to Latest Package Versions" on a newer Xcode and commit the result (e.g. swift-collections ≥ 1.7 and swift-crypto ≥ 4.5 need newer Swift tools).
+
 Optional prerequisites check:
 ```bash
 ./scripts/check-prerequisites.sh
