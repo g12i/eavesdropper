@@ -47,6 +47,21 @@ Files per session:
 - **`transcript.srt`** - SRT subtitle file (after transcription)
 - **`transcription.json`** - metadata (language, model, timestamps)
 
+## Repairing recordings
+
+Older builds could write `system.caf` tagged at 48 kHz while the audio is effectively 44.1 kHz, which makes playback sound ~8.8% too high. To export a corrected MP3 with ffmpeg:
+
+```bash
+./scripts/repair-recording-to-mp3.sh ~/Recordings/2026-01-15_10-30-00/system.caf
+# -> system-repaired.mp3 in the same folder
+
+./scripts/repair-recording-to-mp3.sh --recordings          # all sessions
+./scripts/repair-recording-to-mp3.sh --recordings --dry-run
+./scripts/repair-recording-to-mp3.sh --recordings --force  # overwrite existing MP3s
+```
+
+Requires [ffmpeg](https://ffmpeg.org/) (`brew install ffmpeg`). Skips output files that already exist unless you pass `--force`.
+
 ## How to Use
 
 1. **Start Recording** - appears in the menu bar
