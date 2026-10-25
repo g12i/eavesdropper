@@ -127,6 +127,7 @@ Transcribe via CLI (for testing):
 
 ## Development Notes
 
+- Rebuild and restart the app: `./scripts/rebuild-and-restart.sh`
 - No network after model download - transcription is fully local
 - Recordings shorter than 60s show a dialog warning (but can still be transcribed)
 - Inactive app uses `.accessory` activation policy (no dock icon)
