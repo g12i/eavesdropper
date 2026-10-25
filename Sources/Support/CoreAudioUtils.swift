@@ -122,6 +122,23 @@ extension AudioObjectID {
         return Double(rate)
     }
 
+    /// Sets `kAudioDevicePropertyNominalSampleRate` (e.g. align aggregate clock with output device).
+    func setNominalSampleRate(_ sampleRate: Double) throws {
+        var rate = Float64(sampleRate)
+        let size = UInt32(MemoryLayout<Float64>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let err = withUnsafePointer(to: &rate) { ptr in
+            AudioObjectSetPropertyData(self, &address, 0, nil, size, ptr)
+        }
+        guard err == noErr else {
+            throw "Error setting nominal sample rate to \(sampleRate): \(err)"
+        }
+    }
+
     /// Reads `kAudioDevicePropertyStreamFormat` for the given scope (typically input on an aggregate device).
     func readDeviceStreamBasicDescription(
         scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeInput
