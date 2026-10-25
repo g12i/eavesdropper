@@ -36,7 +36,7 @@ final class MenuHeaderPresentationTests: XCTestCase {
             modelReady: false,
             modelBusy: false
         )
-        XCTAssertEqual(model.title, "Wymaga konfiguracji")
+        XCTAssertEqual(model.title, "Setup required")
         XCTAssertEqual(model.tone, .configuration)
         XCTAssertEqual(model.missingRequirements, [.systemAudioPermission, .whisperModel])
         XCTAssertTrue(model.needsSetup)

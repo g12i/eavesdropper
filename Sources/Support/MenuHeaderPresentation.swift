@@ -35,7 +35,7 @@ struct MenuHeaderModel: Equatable {
     let missingRequirements: [ConfigurationRequirement]
     let isRecording: Bool
 
-    /// True when the menu shows **Wymaga konfiguracji** (including optional model setup).
+    /// True when the menu shows **Setup required** (including optional model setup).
     var needsSetup: Bool {
         !missingRequirements.isEmpty
     }
