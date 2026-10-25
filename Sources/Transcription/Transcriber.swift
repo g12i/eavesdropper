@@ -129,7 +129,7 @@ enum Transcriber {
                 TranscriptSegment(
                     start: TimeInterval(segment.start),
                     end: TimeInterval(segment.end),
-                    text: segment.text,
+                    text: TranscriptTextSanitizer.clean(segment.text),
                     noSpeechProb: segment.noSpeechProb
                 )
             }

@@ -32,6 +32,41 @@ final class TranscriptMergerTests: XCTestCase {
         XCTAssertEqual(merged.map(\.text), ["tak"])
     }
 
+    func testStripsWhisperSpecialTokens() {
+        let segments = [
+            seg(
+                start: 0,
+                end: 2,
+                text: "<|startoftranscript|><|pl|><|transcribe|>Wykład medyczny"
+            ),
+            seg(start: 2, end: 4, text: "<|2.00|> kontynuacja"),
+            seg(start: 4, end: 5, text: "<|endoftext|>"),
+        ]
+        let merged = TranscriptMerger.merge(segments)
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged[0].text, "Wykład medyczny kontynuacja")
+    }
+
+    func testTXTAndSRTOmitSpecialTokens() throws {
+        let segments = [
+            seg(start: 0, end: 1, text: "<|startoftranscript|><|pl|>Cześć"),
+        ]
+        let txt = FileManager.default.temporaryDirectory.appendingPathComponent("tapscribe-txt-test.txt")
+        let srt = FileManager.default.temporaryDirectory.appendingPathComponent("tapscribe-txt-test.srt")
+        defer {
+            try? FileManager.default.removeItem(at: txt)
+            try? FileManager.default.removeItem(at: srt)
+        }
+        try TranscriptMerger.writeTXT(segments, to: txt)
+        try TranscriptMerger.writeSRT(segments, to: srt)
+        let txtContent = try String(contentsOf: txt, encoding: .utf8)
+        let srtContent = try String(contentsOf: srt, encoding: .utf8)
+        XCTAssertTrue(txtContent.contains("Cześć"))
+        XCTAssertFalse(txtContent.contains("<|"))
+        XCTAssertTrue(srtContent.contains("Cześć"))
+        XCTAssertFalse(srtContent.contains("<|"))
+    }
+
     func testSRTFormat() throws {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("tapscribe-srt-test.srt")
         defer { try? FileManager.default.removeItem(at: tmp) }

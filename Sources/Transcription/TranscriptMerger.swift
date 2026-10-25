@@ -8,13 +8,14 @@ enum TranscriptMerger {
     ]
 
     static func merge(_ segments: [TranscriptSegment]) -> [TranscriptSegment] {
-        let filtered = segments.filter(shouldKeep).sorted { $0.start < $1.start }
+        let cleaned = segments.map(sanitize)
+        let filtered = cleaned.filter(shouldKeep).sorted { $0.start < $1.start }
         return coalesce(filtered)
     }
 
     static func writeTXT(_ segments: [TranscriptSegment], to url: URL) throws {
         let lines = segments.map { segment in
-            "[\(formatClock(segment.start))] \(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))"
+            "[\(formatClock(segment.start))] \(TranscriptTextSanitizer.clean(segment.text))"
         }
         try lines.joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
     }
@@ -22,7 +23,7 @@ enum TranscriptMerger {
     static func writeSRT(_ segments: [TranscriptSegment], to url: URL) throws {
         var blocks: [String] = []
         for (index, segment) in segments.enumerated() {
-            let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = TranscriptTextSanitizer.clean(segment.text)
             blocks.append(
                 """
                 \(index + 1)
@@ -33,6 +34,15 @@ enum TranscriptMerger {
             )
         }
         try blocks.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func sanitize(_ segment: TranscriptSegment) -> TranscriptSegment {
+        TranscriptSegment(
+            start: segment.start,
+            end: segment.end,
+            text: TranscriptTextSanitizer.clean(segment.text),
+            noSpeechProb: segment.noSpeechProb
+        )
     }
 
     static func shouldKeep(_ segment: TranscriptSegment) -> Bool {
