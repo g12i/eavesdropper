@@ -48,6 +48,7 @@
 		EC594470C80D1BA4CE4D8999 /* PrivacySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D36442638179A5570DF8663 /* PrivacySettings.swift */; };
 		F021B51B89DC3D50BB7E45B0 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE25064B86923388CC805F6 /* TranscriptionService.swift */; };
 		F3F9FBDE5E81BDA95DF4D52C /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = BC9D1D81D379C1167508B67D /* WhisperKit */; };
+		F7217A0FF64ECCF0AAEE14F5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3D738387225B0C4A588286CF /* Assets.xcassets */; };
 		FC7F8761A52D91756A09A256 /* TranscriptTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 544553B8FE256AB89315A318 /* TranscriptTypes.swift */; };
 /* End PBXBuildFile section */
 
@@ -69,6 +70,7 @@
 		2C0CA30DA8210401AB6F3F09 /* CaptureDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureDiagnostics.swift; sourceTree = "<group>"; };
 		3453CCB3F0CF3D3E9CC089F5 /* RecordingMenuPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMenuPresentation.swift; sourceTree = "<group>"; };
 		3AC97018033904F1EE925B4D /* TranscriptMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptMerger.swift; sourceTree = "<group>"; };
+		3D738387225B0C4A588286CF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3DE25064B86923388CC805F6 /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
 		4CAC5DBEF745B0DC654B105E /* SessionRecordingDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecordingDuration.swift; sourceTree = "<group>"; };
 		537258CEAC02B9B3DDC7EE7E /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -189,6 +191,7 @@
 		DFD3F7BE0E702A6B04DDFB4B /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3D738387225B0C4A588286CF /* Assets.xcassets */,
 				72D623C28E3746C71F7736A2 /* Eavesdropper.entitlements */,
 				FDBEAA5355962747DAA0618D /* EavesdropperApp.swift */,
 				E9C319691A44E810B0F1257F /* EavesdropperAppDelegate.swift */,
@@ -236,6 +239,7 @@
 			buildConfigurationList = 815AD3D1234491B66B055E56 /* Build configuration list for PBXNativeTarget "Eavesdropper" */;
 			buildPhases = (
 				240967DC9E70E08723063730 /* Sources */,
+				5DFD36F340F63259C4347630 /* Resources */,
 				5C212830B21FA585CEDEE909 /* Frameworks */,
 			);
 			buildRules = (
@@ -304,6 +308,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5DFD36F340F63259C4347630 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F7217A0FF64ECCF0AAEE14F5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		240967DC9E70E08723063730 /* Sources */ = {
